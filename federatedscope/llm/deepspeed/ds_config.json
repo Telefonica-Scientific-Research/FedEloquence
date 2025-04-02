@@ -1,0 +1,36 @@
+{
+    "train_batch_size": 1,
+    "steps_per_print": 2000,
+    "bfp16": {
+     "enabled": true,
+     "auto_cast": true,
+     "loss_scale": 0,
+     "initial_scale_power": 16,
+     "loss_scale_window": 1000,
+     "hysteresis": 2,
+     "consecutive_hysteresis": false,
+     "min_loss_scale": 1
+     },
+    "seq_parallel_communication_data_type": "torch.bfloat16",
+    "sparse_attention": {"enabled": true}, 
+    "optimizer": {
+      "type": "OneBitAdam",
+      "params": {
+        "lr": 0.001,
+        "betas": [
+          0.8,
+          0.999
+        ],
+        "eps": 1e-1,
+        "weight_decay": 3e-7
+      }
+    },
+    "scheduler": {
+      "type": "WarmupLR",
+      "params": {
+        "warmup_min_lr": 0,
+        "warmup_max_lr": 0.001,
+        "warmup_num_steps": 1000
+      }
+    }
+  }
