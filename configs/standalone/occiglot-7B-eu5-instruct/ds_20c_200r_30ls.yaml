@@ -1,0 +1,51 @@
+use_gpu: True
+device: 1
+expname_tag: "ds_20c_200r_30ls"
+early_stop:
+  patience: 0
+federate:
+  mode: "standalone"
+  master_port: 29340
+  client_num: 20
+  total_round_num: 200 
+  share_local_model: True
+  online_aggr: False
+  process_num: 1
+  save_to: "finetuned_adapters/standalone/occiglot-7B-eu5-instruct/ds_20c_200r_30ls.ckpt"
+data:
+  root: data/
+  type: 'alpaca@llm'
+  splits: [0.98,0.01,0.01]
+  splitter: 'iid'
+  domain_type: 'single'
+llm:
+  tok_len: 1000
+  chat:
+    max_len: 2000
+  adapter:
+    use: True
+    args: [ { 'adapter_package': 'peft', 'adapter_method': 'lora', 'r': 8, 'lora_alpha': 16, 'lora_dropout': 0.05, 'target_modules': [ "q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head" ] } ]
+  deepspeed:
+    use: True
+    ds_config: 'federatedscope/llm/deepspeed/ds_config_4bs.json'
+  prompt_path: prompt_templates/alpaca
+dataloader:
+  batch_size: 1
+model:
+  type: 'occiglot/occiglot-7B-eu5-instruct@huggingface_llm'
+train:
+  local_update_steps: 30
+  batch_or_epoch: batch
+  optimizer:
+    lr: 0.0003
+    weight_decay: 0.0
+  is_enable_half: True
+criterion:
+  type: CrossEntropyLoss
+trainer:
+  type: llmtrainer
+eval:
+  freq: 10
+  metrics: ['loss']
+  count_flops: False
+  len_server_dataset: 1000
