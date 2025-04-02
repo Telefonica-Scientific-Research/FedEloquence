@@ -1,143 +1,76 @@
+# Installation, Setup and Running of FederatedScope for LLMs Fine-tuning
 
-# Python Project Template
-
-A low dependency and really simple to start project template for Python Projects.
-
-### HOW TO USE THIS TEMPLATE
-
-> **DO NOT FORK** this is meant to be used from **[Use this template](https://github.com/maviva/python-project-silver-template/generate)** feature.
-
-1. Click on **[Use this template](https://github.com/maviva/python-project-silver-template/generate)**
-3. Give a name to your project  
-   (e.g. `my_awesome_project` recommendation is to use all lowercase and underscores separation for repo names.)
-3. Wait until the first run of CI finishes  
-   (Github Actions will process the template and commit to your new repo)
-4. If you want [codecov](https://about.codecov.io/sign-up/) Reports and Automatic Release to [PyPI](https://pypi.org)  
-  On the new repository `settings->secrets` add your `PYPI_API_TOKEN` and `CODECOV_TOKEN` (get the tokens on respective websites)
-4. Read the file [CONTRIBUTING.md](CONTRIBUTING.md)
-5. Then clone your new project and happy coding!
-
-> **NOTE**: **WAIT** until first CI run on github actions before cloning your new project.
-
-### What is included on this template?
-
-- 📦 A basic [setup.py](setup.py) file to provide installation, packaging and distribution for your project.  
-  Template uses setuptools because it's the de-facto standard for Python packages, you can run `make switch-to-poetry` later if you want.
-- 🤖 A [Makefile](Makefile) with the most useful commands to install, test, lint, format and release your project.
-- 📃 Documentation structure using [mkdocs](http://www.mkdocs.org)
-- 💬 Auto generation of change log using **gitchangelog** to keep a HISTORY.md file automatically based on your commit history on every release.
-- 🐋 A simple [Containerfile](Containerfile) to build a container image for your project.  
-  `Containerfile` is a more open standard for building container images than Dockerfile, you can use buildah or docker with this file.
-- 🧪 Testing structure using [pytest](https://docs.pytest.org/en/latest/)
-- ✅ Code linting using [flake8](https://flake8.pycqa.org/en/latest/)
-- 📊 Code coverage reports using [codecov](https://about.codecov.io/sign-up/)
-- 🛳️ Automatic release to [PyPI](https://pypi.org) using [twine](https://twine.readthedocs.io/en/latest/) and github actions.
-- 🎯 Entry points to execute your program using `python -m <fedeloquence>` or `$ fedeloquence` with basic CLI argument parsing.
-- 🔄 Continuous integration using [Github Actions](.github/workflows/) with jobs to lint, test and release your project on Linux, Mac and Windows environments.
-
-<!--  DELETE THE LINES ABOVE THIS AND WRITE YOUR PROJECT README BELOW -->
-
----
-# fedeloquence
-
-[![codecov](https://codecov.io/gh/Telefonica-Scientific-Research/FedEloquence/branch/main/graph/badge.svg?token=FedEloquence_token_here)](https://codecov.io/gh/Telefonica-Scientific-Research/FedEloquence)
-[![CI](https://github.com/Telefonica-Scientific-Research/FedEloquence/actions/workflows/main.yml/badge.svg)](https://github.com/Telefonica-Scientific-Research/FedEloquence/actions/workflows/main.yml)
-
-Brief abstract of the research
-[_"Title"_](https://journal.net/forum?id=Title)
-
-
-## Description
-
-Description
-
-<p align="center">
-<img src = "figs/python-logo.svg" alt="Alternative caption 1"/>
-</p>
-<p align="center">
-Fig. 1. Caption 1
-</p>
-
-
-### Subsection
-
-Description
-
-
-## Results
-
-Main Results
-
-<table style="border-collapse: collapse; width: 100%; height: 108px;" align="center">
-   <thead>
-      <tr style="height: 18px;">
-         <td style="width: 20%; height: 18px; text-align: center;" align="center"><strong>Dataset</strong></td>
-         <td style="width: 20%; height: 18px; text-align: center;" align="center"><strong>Rows</strong></td>
-         <td style="width: 20%; height: 18px; text-align: center;" align="center"><strong>Num. Feats</strong></td>
-         <td style="width: 20%; height: 18px; text-align: center;" align="center"><strong>Cat. Feats</strong></td>
-         <td style="width: 20%; height: 18px; text-align: center;" align="center"><strong>Task</strong></td>
-      </tr>
-   </thead>
-   <tbody>
-      <tr style="height: 18px;">
-         <td style="width: 20%; height: 18px; text-align: center;" align="center"><a href="https://community.fico.com/s/explainable-machine-learning-challenge">HELOC</a></td>
-         <td style="width: 20%; height: 18px; text-align: center;" align="center">9871</td>
-         <td style="width: 20%; height: 18px; text-align: center;" align="center">21</td>
-         <td style="width: 20%; height: 18px; text-align: center;" align="center">2</td>
-         <td style="width: 20%; height: 18px; text-align: center;" align="center">Binary</td>
-      </tr>
-   </tbody>
-</table>
-
-
-## How to use the code
-
-### Install it from PyPI
+First, use a virtual environment manager such as uv to create a virtual environment. Make sure you are using Python 3.9.0:
+To install uv please follow the next guidelines: https://docs.astral.sh/uv/getting-started/installation or just run the following command:
 
 ```bash
-pip install fedeloquence
-```
-
-### Usage
-
-```py
-from fedeloquence import BaseClass
-from fedeloquence import base_function
-
-BaseClass().base_method()
-base_function()
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 ```bash
-$ python -m fedeloquence
-#or
-$ fedeloquence
+uv venv FedEloq --python 3.9.0
+source FedEloq/bin/activate
 ```
 
-
-### Requirements
+Clone the specific branch of the FederatedScope repository to your machine:
 
 ```bash
-numpy==1.25.2
-pandas==2.1.0
-scikit-learn==1.1.2
-tqdm==4.64.1
-torch==1.13.0+cu117
-torch-geometric==2.2.0
-xgboost==1.7.2
+git clone https://github.com/aleixsant/FedEloquence.git
 ```
 
+Open the FedEloquence directory and build the package to obtain a distribution file:
+```bash
+cd FedEloquence
+uv build
+```
 
-## Citation
+With the package built, you can now install it locally to test it out. Use the following command:
+```bash
+uv pip install dist/federatedscope-0.3.0-py3-none-any.whl
+```
 
-If you use this codebase, please cite our work:
+If you're developing the package and want to make sure changes are immediately reflected without rebuilding every time, you can also install in editable mode: 
 
-```bib
-@article{authorYearTitle,
-    title={title},
-    author={author},
-    year={year},
-    journal={journal},
-    url={url}
-}
+```bash
+uv pip install -e .
+```
+
+Before using DeepSpeed, review the configuration file at `federatedscope/llm/deepspeed/ds_config.json`. Ensure that the train_batch_size parameter is properly set to match the number of GPUs available on your machine (default: "train_batch_size": 1).
+
+Check if fine-tuning an LLM in standalone mode works correctly with DeepSpeed. Run the following script to verify that the fine-tuning process is functioning properly:
+
+```bash
+deepspeed federatedscope/main.py --cfg configs/standalone/occiglot-7B-eu5-instruct/ds_3c_200r_30ls.yaml
+```
+
+To execute federated fine-tuning in distributed mode, separate commands need to be run for the server and each client. In the FederatedScope framework, each client must run on a different machine. The following config files will allow us to test if the setup works with two clients in distributed mode. However, before running the commands, ensure that the `server_host`, `server_port`, `client_host`, and `client_port` fields in the config files are updated with the correct IP addresses and ports for your machines. Additionally, adjust CUDA_VISIBLE_DEVICES to reflect the number of GPUs available on each machine.
+
+To run the server use:
+```bash
+deepspeed --master_addr=127.0.0.1 --master_port=29500 federatedscope/main.py --cfg configs/distributed/Phi-3.5-mini-instruct/server_ds_2c_200r_30ls.yaml
+```
+
+To run a first client in one machine use:
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2 deepspeed --master_addr=127.0.0.1 --master_port=29500 federatedscope/main.py --cfg configs/distributed/Phi-3.5-mini-instruct/client_1_ds_2c_200r_30ls.yaml
+```
+
+To run a second client in another machine:
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2 deepspeed --master_addr=127.0.0.1 --master_port=29500 federatedscope/main.py --cfg configs/distributed/Phi-3.5-mini-instruct/client_2_ds_2c_200r_30ls.yaml 
+```
+
+To ensure that the correct CUDA paths are set, add the following lines to your `.bashrc` (or equivalent shell configuration file). The CUDA version should be around version 12 (e.g., 12.4, 12.5, or 12.6). If you don’t already have the [CUTLASS](https://github.com/NVIDIA/cutlass) repository installed, clone and set it up on your machine.
+
+```bash
+export PATH=/usr/local/cuda-12/bin/:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda-12/lib64:/usr/local/cuda-12/lib:$LD_LIBRARY_PATH
+export CUDA_HOME=/usr/local/cuda-12
+export CUTLASS_PATH=/home/user/repos/cutlass 
+```
+
+After editing `.bashrc`, don't forget to run:
+
+```bash
+source ~/.bashrc
 ```
