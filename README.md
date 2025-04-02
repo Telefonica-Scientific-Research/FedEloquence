@@ -15,7 +15,7 @@ source FedEloq/bin/activate
 Clone the specific branch of the FederatedScope repository to your machine:
 
 ```bash
-git clone https://github.com/aleixsant/FedEloquence.git
+git clone https://github.com/Telefonica-Scientific-Research/FedEloquence.git
 ```
 
 Open the FedEloquence directory and build the package to obtain a distribution file:
