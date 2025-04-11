@@ -78,7 +78,7 @@ class BaseDataTranslator:
             assert len(dataset) == len(['train', 'val', 'test']), error_msg
             return [dataset[0], dataset[1], dataset[2]]
         
-        print("Length input dataset: ", len(dataset))
+        logger.info(f"Length input dataset: {len(dataset)}")
 
         if self.global_cfg.data.shuffle == True:
             index = np.random.permutation(np.arange(len(dataset)))
@@ -92,18 +92,18 @@ class BaseDataTranslator:
         len_clients_dataset = len(dataset)-2*len_server_dataset
 
         train_size = int(splits[0] * len_clients_dataset)
-        print("Length train set (before splitting it into clients): ", train_size)
+        logger.info(f"Length train set (before splitting it into clients): {train_size}")
         val_size = int(splits[1] * len_clients_dataset)
-        print("Length val set (before splitting it into clients): ", val_size)
-        print("For now length val set is the same as length test set (before splitting it into clients).")
+        logger.info(f"Length val set (before splitting it into clients): {val_size}")
+        logger.info(f"For now length val set is the same as length test set (before splitting it into clients).")
 
         if isinstance(dataset, Dataset):
             
             val_server_dataset = Subset(dataset, index[:len_server_dataset])
-            print("Length of the server val set: ", len(val_server_dataset))
+            logger.info(f"Length of the server val set: {len(val_server_dataset)}")
 
             test_server_dataset = Subset(dataset, index[len_server_dataset : 2*len_server_dataset])
-            print("Length of the server test set: ", len(test_server_dataset))
+            logger.info(f"Length of the server test set: {len(test_server_dataset)}")
             
             train_dataset = Subset(dataset, 
                                     index[2*len_server_dataset : 2*len_server_dataset + train_size])
@@ -116,15 +116,15 @@ class BaseDataTranslator:
                 train_dataset = Subset(dataset, 
                                     index[2*len_server_dataset + train_size*lang_pos_id: 2*len_server_dataset + train_size*(lang_pos_id+1)])
             """
-            print("Length train set (before splitting it into clients): ", len(train_dataset))
+            logger.info(f"Length train set (before splitting it into clients): {len(train_dataset)}")
 
             val_dataset = Subset(dataset,
                                 index[2*len_server_dataset + train_size : 2*len_server_dataset + train_size + val_size])
-            print("Length val set (before splitting it into clients): ", len(val_dataset))
+            logger.info(f"Length val set (before splitting it into clients): {val_dataset}")
 
             test_dataset = Subset(dataset, 
                                 index[2*len_server_dataset + train_size + val_size : 2*len_server_dataset + train_size + 2*val_size])
-            print("Length test set (before splitting it into clients): ", len(test_dataset))
+            logger.info(f"Length test set (before splitting it into clients): {len(test_dataset)}")
 
         else:
             val_server_dataset = [dataset[x] for x in index[:len_server_dataset]]
@@ -160,7 +160,7 @@ class BaseDataTranslator:
         # Split train/val/test to n clients
         if len(train) > 0:
             split_train = self.splitter(train, shuffle_train)
-            print("Number of splits of train set (number of train subsets):", len(split_train))
+            logger.info(f"Number of splits of train set (number of train subsets): {len(split_train)}")
 
             if self.global_cfg.data.consistent_label_distribution:
                 try:
@@ -173,11 +173,11 @@ class BaseDataTranslator:
                         'label.')
         if len(val) > 0:
             split_val = self.splitter(val, shuffle, prior=train_label_distribution)
-            print("Number of splits of val set (number of val subsets):", len(split_val))
+            logger.info(f"Number of splits of val set (number of val subsets): {len(split_val)}")
             
         if len(test) > 0:
             split_test = self.splitter(test, shuffle, prior=train_label_distribution)
-            print("Number of splits of test set (number of test subsets):", len(split_test))
+            logger.info(f"Number of splits of test set (number of test subsets): {len(split_test)}")
         
         data_dict = {
             0: ClientData(self.global_cfg, train=None, val=s_val, test=s_test)
