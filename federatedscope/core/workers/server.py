@@ -411,7 +411,7 @@ class Server(BaseServer):
                 self.state % self._cfg.federate.save_freq == 0 and \
                 self._cfg.federate.save_freq > 0:
             path = add_prefix_to_path(f'{self.state}_',
-                                      self._cfg.federate.save_to)
+                                      self._cfg.federate.adapt_save_to)
             if self.ds_rank == 0:
                 self.aggregator.save_model(path, self.state)
 
@@ -652,8 +652,8 @@ class Server(BaseServer):
                     # When the frequency of evaluations is high,
                     # the frequency of writing to disk in the early stages
                     # may also be high
-                    if self._cfg.federate.save_to != '' and self.ds_rank == 0:
-                        self.aggregator.save_model(self._cfg.federate.save_to,
+                    if self._cfg.federate.adapt_save_to != '' and self.ds_rank == 0:
+                        self.aggregator.save_model(self._cfg.federate.adapt_save_to,
                                                    self.state)
 
         return formatted_logs_all_set
