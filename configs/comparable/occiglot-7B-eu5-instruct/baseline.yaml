@@ -28,7 +28,7 @@ federate:
   mode: standalone
   online_aggr: false
   process_num: 1
-  #save_to: 
+  #adapt_save_to: 
   share_local_model: true
   total_round_num: 1000
 llm:

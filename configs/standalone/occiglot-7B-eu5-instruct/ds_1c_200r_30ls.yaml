@@ -11,7 +11,7 @@ federate:
   share_local_model: True
   online_aggr: False
   process_num: 1
-  save_to: "finetuned_adapters/standalone/occiglot-7B-eu5-instruct/ds_1c_200r_30ls.ckpt"
+  adapt_save_to: "finetuned_adapters/standalone/occiglot-7B-eu5-instruct/ds_1c_200r_30ls.ckpt"
 data:
   root: data/
   type: 'alpaca@llm'

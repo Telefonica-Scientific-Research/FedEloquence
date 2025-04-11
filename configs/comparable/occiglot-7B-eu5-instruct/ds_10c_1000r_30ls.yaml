@@ -28,7 +28,7 @@ federate:
   mode: standalone
   online_aggr: false
   process_num: 1
-  save_to: finetuned_adapters/comparable/occiglot-7B-eu5-instruct/ds_10c_1000r_30ls.ckpt
+  adapt_save_to: finetuned_adapters/comparable/occiglot-7B-eu5-instruct/ds_10c_1000r_30ls.ckpt
   share_local_model: true
   total_round_num: 1000
 llm:

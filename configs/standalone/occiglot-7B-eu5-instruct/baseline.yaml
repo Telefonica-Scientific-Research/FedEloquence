@@ -11,7 +11,7 @@ federate:
   share_local_model: True
   online_aggr: False
   process_num: 1
-  #save_to: ""
+  #adapt_save_to: ""
 data:
   root: data/
   type: 'alpaca@llm'
