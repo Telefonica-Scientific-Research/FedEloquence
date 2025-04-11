@@ -38,7 +38,7 @@ def extend_fl_setting_cfg(cfg):
     cfg.federate.ignore_weight = False
     cfg.federate.use_ss = False  # Whether to apply Secret Sharing
     cfg.federate.restore_from = ''
-    cfg.federate.save_to = ''
+    cfg.federate.adapt_save_to = ''
     cfg.federate.save_freq = -1
     cfg.federate.save_client_model = False
     cfg.federate.join_in_info = [
