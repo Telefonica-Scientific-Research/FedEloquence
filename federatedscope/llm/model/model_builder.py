@@ -13,7 +13,6 @@ def get_model_from_huggingface(model_name, config):
     Returns:
         AutoModelForCausalLM: A causal language model object.
     """
-    print("model_name", model_name)
     from transformers import AutoModelForCausalLM
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
@@ -22,7 +21,6 @@ def get_model_from_huggingface(model_name, config):
     if len(config.llm.cache.model):
         kwargs['cache_dir'] = config.llm.cache.model
 
-    print("model_name", model_name)
     return AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, torch_dtype=torch.bfloat16, **kwargs)
 
 
