@@ -34,6 +34,18 @@ def extend_llm_cfg(cfg):
     cfg.llm.prompt_path = ""
 
     # ---------------------------------------------------------------------- #
+    # Path to save the model weights with the trained adapter embedded
+    # ---------------------------------------------------------------------- #
+    cfg.llm.model_save_to = ''
+
+    # ---------------------------------------------------------------------- #
+    # Hugging face format
+    # ---------------------------------------------------------------------- #
+    cfg.llm.to_hf_format = CN()
+    cfg.llm.to_hf_format.use = False
+    cfg.llm.to_hf_format.hash_code_model_snapshot = ''
+
+    # ---------------------------------------------------------------------- #
     # Deepspeed related options
     # ---------------------------------------------------------------------- #
     cfg.llm.deepspeed = CN()

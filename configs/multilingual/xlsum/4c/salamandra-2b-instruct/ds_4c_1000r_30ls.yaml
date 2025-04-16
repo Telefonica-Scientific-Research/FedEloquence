@@ -17,7 +17,7 @@ early_stop:
   patience: 0
 eval:
   count_flops: false
-  freq: 10
+  freq: 5
   metrics:
   - loss
   len_server_dataset: 2000
@@ -31,7 +31,7 @@ federate:
   process_num: 1
   adapt_save_to: finetuned_adapters/multilingual/xlsum/4c/salamandra-2b-instruct/ds_4c_1000r_30ls.ckpt
   share_local_model: true
-  total_round_num: 1000
+  total_round_num: 10
 llm:
   adapter:
     args:
@@ -57,6 +57,10 @@ llm:
     use: true
   tok_len: 3000
   prompt_path: prompt_templates/xlsum_4c
+  model_save_to: models_with_ft_adapt/multilingual/xlsum/4c/salamandra-2b-instruct
+  to_hf_format: 
+    use: true
+    hash_code_model_snapshot: ""
 model:
   type: BSC-LT/salamandra-2b-instruct@huggingface_llm
 train:

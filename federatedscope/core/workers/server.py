@@ -551,6 +551,77 @@ class Server(BaseServer):
         logger.info(formatted_best_res)
         self._monitor.save_formatted_results(formatted_best_res)
 
+    def save_model_weights_with_trained_adapter(self):
+        import torch
+        from federatedscope.llm.model.model_builder import get_llm
+        from safetensors.torch import save_model
+        from pathlib import Path
+
+        # Get base model with th default adapter
+        base_model_with_adapt = get_llm(self._cfg)
+
+        # Load trained adapter checkpoint
+        ckpt = torch.load(add_prefix_to_path('final_', self._cfg.federate.adapt_save_to), map_location='cpu', weights_only=True)
+        base_model_with_adapt.load_state_dict(ckpt['model'], strict=False)
+
+        model_save_to_path = Path(self._cfg.llm.model_save_to) / "model.safetensors"
+        
+        # Ensure the parent directory exists
+        model_save_to_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Save base model + trained adapter
+        save_model(base_model_with_adapt, str(model_save_to_path))
+    
+    def delete_prev_ckpt(self):
+        import os
+        file_path = self._cfg.federate.adapt_save_to
+        # Delete the file
+        try:
+            os.remove(file_path)
+            logger.info(f"The file in {file_path} has been deleted.")
+        except FileNotFoundError:
+            logger.info(f"The file {file_path} does not exist.")
+    
+    def prepare_for_hf_format(self):
+        import os
+        import shutil
+        from pathlib import Path
+
+        # Set up the path to the working directory
+        work_dir = "" # To complete. Example: Path.home() / "FedEloquence"
+
+        if work_dir.exists():
+            print(f"The following directory doesn't exist: {work_dir}. Please specify in the work_dir variable.")
+
+        # Extract model name and org from the config
+        model_type = self._cfg.model.type.split('@')
+        model_name = model_type[0].split('/')[1]
+        org = model_type[0].split('/')[0]
+
+        hash_code_model_snapshot = self._cfg.llm.to_hf_format.hash_code_model_snapshot
+        experiment_name = self._cfg.expname_tag
+
+        # Define source and destination paths
+        src_path_from_cache = "" # To complete. Example: Path.home() / ".cache" / "huggingface" / "hub" / f"models--{org}--{model_name}" / "snapshots" / hash_code_model_snapshot
+        if src_path_from_cache.exists():
+            print(f"The following directory doesn't exist: {src_path_from_cache}. Please specify in the src_path_from_cache variable.")
+        dest_path_to_hf_format = Path(work_dir) / self._cfg.llm.model_save_to 
+        
+        # Iterate over the files in the source directory and copy them to the destination
+        for src_dir, _, files in os.walk(src_path_from_cache):
+            for file_name in files:
+                # Skip files that end with .safetensors
+                if file_name.endswith('.safetensors'):
+                    continue
+
+                # Construct full file paths
+                src_file = Path(src_dir) / file_name
+                dest_file = dest_path_to_hf_format / file_name
+
+                # Copy the file
+                shutil.copy2(src_file, dest_file)
+                logger.info(f"Copied {src_file} to {dest_file}")
+
     def save_client_eval_results(self):
         """
         save the evaluation results of each client when the fl course \
