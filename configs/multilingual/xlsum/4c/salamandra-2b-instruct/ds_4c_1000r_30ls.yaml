@@ -17,7 +17,7 @@ early_stop:
   patience: 0
 eval:
   count_flops: false
-  freq: 5
+  freq: 10
   metrics:
   - loss
   len_server_dataset: 2000
@@ -31,7 +31,7 @@ federate:
   process_num: 1
   adapt_save_to: finetuned_adapters/multilingual/xlsum/4c/salamandra-2b-instruct/ds_4c_1000r_30ls.ckpt
   share_local_model: true
-  total_round_num: 10
+  total_round_num: 1000
 llm:
   adapter:
     args:
