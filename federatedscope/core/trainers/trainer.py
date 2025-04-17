@@ -244,7 +244,10 @@ class Trainer(BaseTrainer):
         hooks_set = hooks_set or self.hooks_in_eval
 
         if self.ctx.check_split(target_data_split_name, skip=True):
-            self._run_routine(MODE.TEST, hooks_set, target_data_split_name)
+            if target_data_split_name == "test":
+                self._run_routine(MODE.TEST, hooks_set, target_data_split_name)
+            if target_data_split_name == "val":    
+                self._run_routine(MODE.VAL, hooks_set, target_data_split_name)
         else:
             self.ctx.eval_metrics = dict()
 
