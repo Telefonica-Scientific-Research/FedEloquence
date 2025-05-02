@@ -32,6 +32,7 @@ federate:
   adapt_save_to: finetuned_adapters/multilingual/xlsum/4c/salamandra-2b-instruct/ds_4c_1000r_30ls.ckpt
   share_local_model: true
   total_round_num: 1000
+  shuffle_trainining_data: False
 llm:
   adapter:
     args:
