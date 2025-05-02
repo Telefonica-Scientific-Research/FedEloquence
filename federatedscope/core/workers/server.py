@@ -677,7 +677,7 @@ class Server(BaseServer):
                 formatted_logs = self._monitor.format_eval_res(
                     metrics_all_clients,
                     rnd=round,
-                    role='Server #',
+                    role='Server # (mean)',
                     forms=self._cfg.eval.report)
                 if merge_type == "unseen":
                     for key, val in copy.deepcopy(formatted_logs).items():
@@ -1035,6 +1035,28 @@ class Server(BaseServer):
                 logger.info(formatted_eval_res)
             self.check_and_save()
         else:
+            for i in range(self.model_num):
+                trainer = self.trainers[i]
+                # Perform evaluation in server
+                metrics = {}
+                for split in self._cfg.eval.split: 
+                    eval_metrics = trainer.evaluate(
+                        target_data_split_name=split)
+                    metrics.update(**eval_metrics)
+                formatted_eval_res = self._monitor.format_eval_res(
+                    metrics,
+                    rnd=self.state,
+                    role='Server #',
+                    forms=self._cfg.eval.report,
+                    return_raw=True)
+                self._monitor.update_best_result(
+                    self.best_results,
+                    formatted_eval_res['Results_raw'],
+                    results_type="server_global_eval")
+                self.history_results = merge_dict_of_results(
+                    self.history_results, formatted_eval_res)
+                self._monitor.save_formatted_results(formatted_eval_res)
+                logger.info(formatted_eval_res) 
             # Preform evaluation in clients
             self.broadcast_model_para(msg_type='evaluate',
                                       filter_unseen_clients=False)
