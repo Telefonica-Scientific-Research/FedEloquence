@@ -1,9 +1,12 @@
 PROMPT = {
     "prompt_input": (
-        "Summarize the following text into one concise sentence that captures its main idea.\n\n"
-        "### Text:\n{instruction}\n\n### Input:"
-        "\n{input}\n\n### Summary:\n"),
+        "Below is an instruction that describes a task, "
+        "paired with an input that provides further context. "
+        "Write a response that appropriately completes the request.\n\n"
+        "### Instruction:\n{instruction}\n\n### Input:"
+        "\n{input}\n\n### Response:"),
     "prompt_no_input": (
-        "Summarize the following text into one concise sentence that captures its main idea.\n\n"
-        "### Text:\n{instruction}\n\n### Summary:\n"),
+        "Below is an instruction that describes a task. "
+        "Write a response that appropriately completes the request.\n\n"
+        "### Instruction:\n{instruction}\n\n### Response:"),
 }
