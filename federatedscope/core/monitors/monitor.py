@@ -341,7 +341,10 @@ class Monitor(object):
             with open(old_f_name, 'rb') as f_in:
                 with gzip.open(old_f_name + ".gz", 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
-            os.remove(old_f_name)
+            try:
+                os.remove(old_f_name)
+            except FileNotFoundError:
+                logger.warning(f"{old_f_name} not found.")
 
     def format_eval_res(self,
                         results,
