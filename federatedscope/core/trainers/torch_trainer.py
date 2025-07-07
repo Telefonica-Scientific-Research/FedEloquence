@@ -452,7 +452,12 @@ class GeneralTorchTrainer(Trainer):
         assert self.ctx.model is not None
 
         if os.path.exists(path):
-            ckpt = torch.load(path, map_location=self.ctx.device)
+        # Ensure map_location is a valid torch.device or string
+            if isinstance(self.ctx.device, int):
+                device = torch.device(f"cuda:{self.ctx.device}" if torch.cuda.is_available() else "cpu")
+            else:
+                device = self.ctx.device # Assume it's already a torch.device or valid string
+            ckpt = torch.load(path, map_location=device)
             self.ctx.model.load_state_dict(ckpt['model'])
             return ckpt['cur_round']
         else:
