@@ -58,7 +58,9 @@ def extend_fl_setting_cfg(cfg):
     cfg.federate.atc_load_from = ''
     
     cfg.federate.shuffle_trainining_data = True # to shuffle only the data in the train subset (after the split into (val_server, test_server, train, val, test) is done)
-    
+    cfg.federate.use_global_early_stop = False
+    cfg.federate.use_local_early_stop = False
+
     # ---------------------------------------------------------------------- #
     # Distribute training related options
     # ---------------------------------------------------------------------- #
