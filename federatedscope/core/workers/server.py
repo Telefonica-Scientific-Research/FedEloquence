@@ -89,6 +89,8 @@ class Server(BaseServer):
             self._cfg.early_stop.patience, self._cfg.early_stop.delta,
             self._cfg.early_stop.improve_indicator_mode,
             self._monitor.the_larger_the_better)
+        
+        self.all_clients_saturated = False
 
         if self._cfg.federate.share_local_model \
                 and not self._cfg.federate.process_num > 1 \
@@ -133,28 +135,26 @@ class Server(BaseServer):
         self.recover_fun = AdditiveSecretSharing(
             shared_party_num=int(self._cfg.federate.sample_client_num)
         ).fixedpoint2float if self._cfg.federate.use_ss else None
-
-        if self._cfg.federate.make_global_eval:
-            # set up a trainer for conducting evaluation in server
-            assert self.models is not None
-            assert self.data is not None
-            self.trainer = get_trainer(
-                model=self.models[0],
-                data=self.data,
-                device=self.device,
-                config=self._cfg,
-                only_for_eval=True,
-                monitor=self._monitor
-            )  # the trainer is only used for global evaluation
-            self.trainers = [self.trainer]
-            if self.model_num > 1:
-                # By default, the evaluation is conducted by calling
-                # trainer[i].eval over all internal models
-                self.trainers.extend([
-                    copy.deepcopy(self.trainer)
-                    for _ in range(self.model_num - 1)
-                ])
-
+        
+        assert self.models is not None
+        assert self.data is not None
+        self.trainer = get_trainer(
+            model=self.models[0],
+            data=self.data,
+            device=self.device,
+            config=self._cfg,
+            only_for_eval=True,
+            monitor=self._monitor
+        )  # the trainer is only used for global evaluation
+        self.trainers = [self.trainer]
+        if self.model_num > 1:
+            # By default, the evaluation is conducted by calling
+            # trainer[i].eval over all internal models
+            self.trainers.extend([
+                copy.deepcopy(self.trainer)
+                for _ in range(self.model_num - 1)
+            ])
+        
         # Initialize the number of joined-in clients
         self._client_num = client_num
         self._total_round_num = total_round_num
@@ -341,10 +341,11 @@ class Server(BaseServer):
                 if self.state % self._cfg.eval.freq == 0 and self.state != \
                         self.total_round_num:
                     #  Evaluate
+                    logger.info(f'\n')
                     logger.info(f'Server: Starting evaluation at the end '
                                 f'of round {self.state - 1}.')
-                    self.eval()
-
+                    self.eval() # borrrar lo seguent quan hagi mirat
+                    
                 if self.state < self.total_round_num:
                     # Move to next round of training
                     logger.info(
@@ -379,6 +380,7 @@ class Server(BaseServer):
         whether to early stop.
         """
 
+        """ de moment ho comento peor la gracia seria poder triar si vull fer local early stop o el seu early stop generic, investigar
         # early stopping
         if "Results_weighted_avg" in self.history_results and \
                 self._cfg.eval.best_res_update_round_wise_key in \
@@ -394,9 +396,47 @@ class Server(BaseServer):
                     self._cfg.eval.best_res_update_round_wise_key])
         else:
             should_stop = False
+        """
+        should_stop = False
+        reached_saturation = False
+        use_global_early_stop = self._cfg.federate.use_global_early_stop
+        use_local_early_stop = self._cfg.federate.use_local_early_stop
 
-        if should_stop:
+        # Global early stopping (enabled via config)
+        if use_global_early_stop:
+            weighted_key = "Results_weighted_avg"
+            avg_key = "Results_avg"
+            tracked_metric = self._cfg.eval.best_res_update_round_wise_key
+
+            if weighted_key in self.history_results and \
+            tracked_metric in self.history_results[weighted_key]:
+                should_stop = self.early_stopper.track_and_check(
+                    self.history_results[weighted_key][tracked_metric]
+                )
+            elif avg_key in self.history_results and \
+                tracked_metric in self.history_results[avg_key]:
+                should_stop = self.early_stopper.track_and_check(
+                    self.history_results[avg_key][tracked_metric]
+                )
+
+        if use_local_early_stop:
+            # Local early stopping strategy: all clients are saturated
+            # When all clients have reached local early stopping, the FL process is considered complete, and the server notifies all clients accordingly
+            reached_saturation = self.all_clients_saturated
+            if reached_saturation:
+                logger.info(f"[Server] All clients saturated (general early stop reached in round {self.state}).")
+
+        # Decide if the process should be terminated this round
+        should_terminate = (
+            should_stop or
+            reached_saturation or
+            self.state == self.total_round_num
+        )
+
+        if should_terminate:
+            logger.info(f"[Server] Training finished in round {self.state}.")
             self._monitor.global_converged()
+            # Notify clients
             self.comm_manager.send(
                 Message(
                     msg_type="converged",
@@ -404,7 +444,8 @@ class Server(BaseServer):
                     receiver=list(self.comm_manager.neighbors.keys()),
                     timestamp=self.cur_timestamp,
                     state=self.state,
-                ))
+                )
+            )
             self.state = self.total_round_num + 1
 
         if self.state != self.total_round_num and \
@@ -415,7 +456,9 @@ class Server(BaseServer):
             if self.ds_rank == 0:
                 self.aggregator.save_model(path, self.state)
 
-        if should_stop or self.state == self.total_round_num:
+        #if should_stop or self.state == self.total_round_num: # original hi havia això
+        if should_terminate:
+        #if self.all_clients_saturated or self.state == self.total_round_num:
             logger.info('Server: Final evaluation is finished! Starting '
                         'merging results.')
             # last round or early stopped
@@ -443,7 +486,7 @@ class Server(BaseServer):
             aggregator = self.aggregators[model_idx]
             msg_list = list()
             staleness = list()
-
+        
             for client_id in train_msg_buffer.keys():
                 if self.model_num == 1:
                     msg_list.append(train_msg_buffer[client_id])
@@ -518,10 +561,32 @@ class Server(BaseServer):
         The behaviors of server when receiving enough evaluating results
         """
         # Get all the message & aggregate
-        formatted_eval_res = \
-            self.merge_eval_results_from_all_clients()
-        self.history_results = merge_dict_of_results(self.history_results,
-                                                     formatted_eval_res)
+        formatted_eval_res = self.merge_eval_results_from_all_clients()
+        self.history_results = merge_dict_of_results(self.history_results, formatted_eval_res)
+        val_loss_history = self.history_results['Results_avg']['val_loss']
+        val_loss_history_curr = self.history_results['Results_avg']['val_loss_curr']
+            
+        if self._cfg.federate.use_local_early_stop:
+            logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES with best: {val_loss_history}")
+            logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES with current: {val_loss_history_curr}")
+        else: # No early stop at all or self._cfg.federate.use_global_early_stop
+            logger.info(f"[Server (mean)] Validation loss history (avg of clients): {val_loss_history}")
+        logger.info("\n")
+        
+        # no puc cridar dos cops a merge_eval_results_from_all_clients --> cal cridar un i
+        # si es global early stop --> retorna history normal
+        # si es local early stop --> retorna quan hi ha localearlystop history amb best loss a val_loss (ja que el client ha enviat best loss) i un nou valor amb el current: val_loss_curr
+        # mirar si quan local early stop s'imprimeix als logs val_loss_curr --> aixo ens permetria fer un bon print
+        #if self._cfg.federate.use_global_early_stop:
+        #    logger.info(f"[Server (mean)] Validation loss history (avg of clients): {val_loss_history}")
+        #else: # self._cfg.federate.use_local_early_stop
+        #    formatted_eval_res_LES_curr = self.merge_eval_results_from_all_clients(show_curr_val_loss=True)
+        #    self.history_results_LES_curr = merge_dict_of_results(self.history_results_LES_curr,
+        #                                             formatted_eval_res_LES_curr)
+        #    val_loss_history_LES_curr = self.history_results_LES['Results_avg']['val_loss']
+        #    logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES: {val_loss_history}")
+        #    logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES with curr: {val_loss_history_LES_curr}")        
+
         if self.mode == 'standalone' and \
                 self._monitor.wandb_online_track and \
                 self._monitor.use_wandb:
@@ -541,7 +606,7 @@ class Server(BaseServer):
             self.delete_prev_ckpt()
             self.save_model_weights_with_trained_adapter()
             if self._cfg.llm.to_hf_format.use == True:
-                self.prepare_for_hf_format() 
+                self.prepare_for_hf_format()   
         formatted_best_res = self._monitor.format_eval_res(
             results=self.best_results,
             rnd="Final",
@@ -550,7 +615,7 @@ class Server(BaseServer):
             return_raw=True)
         logger.info(formatted_best_res)
         self._monitor.save_formatted_results(formatted_best_res)
-
+    
     def save_model_weights_with_trained_adapter(self):
         import torch
         from federatedscope.llm.model.model_builder import get_llm
@@ -578,20 +643,17 @@ class Server(BaseServer):
         # Delete the file
         try:
             os.remove(file_path)
-            logger.info(f"The file in {file_path} has been deleted.")
+            print(f"The file in {file_path} has been deleted.")
         except FileNotFoundError:
-            logger.info(f"The file {file_path} does not exist.")
+            print(f"The file {file_path} does not exist.")
     
     def prepare_for_hf_format(self):
         import os
         import shutil
         from pathlib import Path
 
-        # Set up the path to the working directory
-        work_dir = "" # To complete. Example: Path.home() / "FedEloquence"
-
-        if work_dir.exists():
-            print(f"The following directory doesn't exist: {work_dir}. Please specify in the work_dir variable.")
+        # Set up the paths
+        work_dir = Path.home() / "repos" / "FL" / "FederatedScope"
 
         # Extract model name and org from the config
         model_type = self._cfg.model.type.split('@')
@@ -602,9 +664,7 @@ class Server(BaseServer):
         experiment_name = self._cfg.expname_tag
 
         # Define source and destination paths
-        src_path_from_cache = "" # To complete. Example: Path.home() / ".cache" / "huggingface" / "hub" / f"models--{org}--{model_name}" / "snapshots" / hash_code_model_snapshot
-        if src_path_from_cache.exists():
-            print(f"The following directory doesn't exist: {src_path_from_cache}. Please specify in the src_path_from_cache variable.")
+        src_path_from_cache = Path.home() / ".cache" / "huggingface" / "hub" / f"models--{org}--{model_name}" / "snapshots" / hash_code_model_snapshot
         dest_path_to_hf_format = Path(work_dir) / self._cfg.llm.model_save_to 
         
         # Iterate over the files in the source directory and copy them to the destination
@@ -620,7 +680,8 @@ class Server(BaseServer):
 
                 # Copy the file
                 shutil.copy2(src_file, dest_file)
-                logger.info(f"Copied {src_file} to {dest_file}")
+                print(f"Copied {src_file} to {dest_file}")
+
 
     def save_client_eval_results(self):
         """
@@ -631,7 +692,7 @@ class Server(BaseServer):
         eval_msg_buffer = self.msg_buffer['eval'][rnd]
 
         with open(os.path.join(self._cfg.outdir, "eval_results.log"),
-                  "a") as outfile:
+                "a") as outfile:
             for client_id, client_eval_results in eval_msg_buffer.items():
                 formatted_res = self._monitor.format_eval_res(
                     client_eval_results,
@@ -651,20 +712,38 @@ class Server(BaseServer):
         """
         round = max(self.msg_buffer['eval'].keys())
         eval_msg_buffer = self.msg_buffer['eval'][round]
-        eval_res_participated_clients = []
+        # Es guarden les mètriques de tots els clients que s'agreguen
+        eval_res_participated = []
         eval_res_unseen_clients = []
         for client_id in eval_msg_buffer:
-            if eval_msg_buffer[client_id] is None:
+            client_eval = eval_msg_buffer[client_id]
+            if client_eval is None:
                 continue
+            #if show_curr_val_loss:
+            #    if client_eval.get("local_early_stop", False):
+            #        if "val_loss_curr" in client_eval:
+            #            client_eval["val_loss"] = client_eval["val_loss_curr"]
             if client_id in self.unseen_clients_id:
                 eval_res_unseen_clients.append(eval_msg_buffer[client_id])
             else:
-                eval_res_participated_clients.append(
+                eval_res_participated.append(
                     eval_msg_buffer[client_id])
+        
+        #logger.info(f'Eval_res_participated_clients (resultats que es fara la mitjana, cal enviar millor model i suposadament seguent round metriques seran similars a les best) {eval_res_participated_clients}')
+        # Per la ronda on s'activa el local_early_stop, es té en compte el mal resultat de val_loss, però ja a la següent ronda s'enviaria el val_loss tenint en compte el millor model
+        # Monitor whether all clients are local ealrly stop or not (i.e., FL is finished)
+        if self._cfg.federate.use_local_early_stop:
+            self.all_clients_saturated = all(eval_res['local_early_stop'] for eval_res in eval_res_participated)
+            logger.info(f"[Server] All clients saturated status: {self.all_clients_saturated}")
 
-        formatted_logs_all_set = dict()
+        # Iterate over the list and delete the key from each dictionary (per deixar format del diccionari original)
+        for res in eval_res_participated:
+            if 'local_early_stop' in res:
+                res.pop('local_early_stop', None)
+
+        formatted_logs_all = dict()
         for merge_type, eval_res_set in [("participated",
-                                          eval_res_participated_clients),
+                                          eval_res_participated),
                                          ("unseen", eval_res_unseen_clients)]:
             if eval_res_set != []:
                 metrics_all_clients = dict()
@@ -689,13 +768,12 @@ class Server(BaseServer):
                             formatted_logs[key + "_unseen"] = val
                             del formatted_logs[key]
                 logger.info(formatted_logs)
-                formatted_logs_all_set.update(formatted_logs)
+                formatted_logs_all.update(formatted_logs)
                 self._monitor.update_best_result(
                     self.best_results,
                     metrics_all_clients,
                     results_type="unseen_client_best_individual"
                     if merge_type == "unseen" else "client_best_individual")
-
                 self._monitor.save_formatted_results(formatted_logs)
 
                 update_prior = -1  # Bigger the higher priority
@@ -727,7 +805,7 @@ class Server(BaseServer):
                         self.aggregator.save_model(self._cfg.federate.adapt_save_to,
                                                    self.state)
 
-        return formatted_logs_all_set
+        return formatted_logs_all
 
     def broadcast_model_para(self,
                              msg_type='model_para',
@@ -754,7 +832,7 @@ class Server(BaseServer):
 
         if sample_client_num > 0:
             receiver = self.sampler.sample(size=sample_client_num)
-        else:
+        else: # -1
             # broadcast to all clients
             receiver = list(self.comm_manager.neighbors.keys())
             if msg_type == 'model_para':
@@ -1006,7 +1084,6 @@ class Server(BaseServer):
         To conduct evaluation. When ``cfg.federate.make_global_eval=True``, \
         a global evaluation is conducted by the server.
         """
-
         if self._cfg.federate.make_global_eval:
             # By default, the evaluation is conducted one-by-one for all
             # internal models;
@@ -1015,7 +1092,7 @@ class Server(BaseServer):
                 trainer = self.trainers[i]
                 # Preform evaluation in server
                 metrics = {}
-                for split in self._cfg.eval.split:
+                for split in self._cfg.eval.split: 
                     eval_metrics = trainer.evaluate(
                         target_data_split_name=split)
                     metrics.update(**eval_metrics)
@@ -1032,12 +1109,12 @@ class Server(BaseServer):
                 self.history_results = merge_dict_of_results(
                     self.history_results, formatted_eval_res)
                 self._monitor.save_formatted_results(formatted_eval_res)
-                logger.info(formatted_eval_res)
+                logger.info(formatted_eval_res) 
             self.check_and_save()
         else:
             for i in range(self.model_num):
                 trainer = self.trainers[i]
-                # Perform evaluation in server
+                # Preform evaluation in server
                 metrics = {}
                 for split in self._cfg.eval.split: 
                     eval_metrics = trainer.evaluate(
@@ -1045,7 +1122,7 @@ class Server(BaseServer):
                     metrics.update(**eval_metrics)
                 formatted_eval_res = self._monitor.format_eval_res(
                     metrics,
-                    rnd=self.state,
+                    rnd=(self.state-1),
                     role='Server #',
                     forms=self._cfg.eval.report,
                     return_raw=True)
