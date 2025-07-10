@@ -57,7 +57,11 @@ def extend_fl_setting_cfg(cfg):
     cfg.federate.atc_vanilla = False
     cfg.federate.atc_load_from = ''
     
-    cfg.federate.shuffle_trainining_data = True # to shuffle only the data in the train subset (after the split into (val_server, test_server, train, val, test) is done)
+    cfg.federate.shuffle_all_data = False # to shuffle all the dataset (previously to the split into val_server, test_server, train, val, test) 
+    cfg.federate.shuffle_train_clients = False # shuffle train data before splitting into clients' subsets
+    cfg.federate.shuffle_val_clients = False #shuffle train data before splitting into clients' subsets
+    cfg.federate.shuffle_test_clients = False #shuffle train data before splitting into clients' subsets
+    
     cfg.federate.use_global_early_stop = False
     cfg.federate.use_local_early_stop = False
 
