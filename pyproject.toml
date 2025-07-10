@@ -35,6 +35,7 @@ dependencies = [
     'accelerate==0.20.3',
     'peft==0.3.0',
     'sentencepiece==0.1.99',
+    'rouge-score',
 ]
 
 [build-system]
