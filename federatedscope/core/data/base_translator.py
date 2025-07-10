@@ -3,6 +3,7 @@ import numpy as np
 
 from federatedscope.core.auxiliaries.splitter_builder import get_splitter
 from federatedscope.core.data import ClientData, StandaloneDataDict
+from torch.utils.data import Dataset, Subset
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,6 @@ class BaseDataTranslator:
         Returns:
              List: List of split dataset, like ``[sval, stest, train, val, test]``
         """
-        from torch.utils.data import Dataset, Subset
 
         if cfg is not None:
             splits = cfg.data.splits
@@ -76,11 +76,11 @@ class BaseDataTranslator:
             error_msg = 'If dataset is tuple, it must contains ' \
                         'train, valid and test split.'
             assert len(dataset) == len(['train', 'val', 'test']), error_msg
-            return [dataset[0], dataset[1], dataset[2]]
+            return [None, None, dataset[0], dataset[1], dataset[2]]
         
         logger.info(f"Length input dataset: {len(dataset)}")
 
-        if self.global_cfg.data.shuffle == True:
+        if self.global_cfg.federate.shuffle_all_data == True:
             index = np.random.permutation(np.arange(len(dataset)))
         else:
             index = np.arange(len(dataset)) # NO SHUFFLE
@@ -96,6 +96,8 @@ class BaseDataTranslator:
         val_size = int(splits[1] * len_clients_dataset)
         logger.info(f"Length val set (before splitting it into clients): {val_size}")
         logger.info(f"For now length val set is the same as length test set (before splitting it into clients).")
+        assert 2 * len_server_dataset + train_size + 2 * val_size <= len(dataset), \
+            "Dataset is too small for the requested splits"
 
         if isinstance(dataset, Dataset):
             
@@ -151,15 +153,19 @@ class BaseDataTranslator:
 
         # Initialization
         client_num = self.global_cfg.federate.client_num
-        split_train, split_val, split_test = [[None] * client_num] * 3
+        split_train = [None] * client_num
+        split_val = [None] * client_num
+        split_test = [None] * client_num
+
         train_label_distribution = None
 
-        shuffle = self.global_cfg.data.shuffle
-        shuffle_train = self.global_cfg.federate.shuffle_trainining_data
+        shuffle_clients_train = self.global_cfg.federate.shuffle_train_clients
+        shuffle_clients_val = self.global_cfg.federate.shuffle_val_clients
+        shuffle_clients_test = self.global_cfg.federate.shuffle_test_clients
 
         # Split train/val/test to n clients
         if len(train) > 0:
-            split_train = self.splitter(train, shuffle_train)
+            split_train = self.splitter(train, shuffle_clients_train)
             logger.info(f"Number of splits of train set (number of train subsets): {len(split_train)}")
 
             if self.global_cfg.data.consistent_label_distribution:
@@ -172,11 +178,11 @@ class BaseDataTranslator:
                         'splitter, split dataset without considering train '
                         'label.')
         if len(val) > 0:
-            split_val = self.splitter(val, shuffle, prior=train_label_distribution)
+            split_val = self.splitter(val, shuffle_clients_val, prior=train_label_distribution)
             logger.info(f"Number of splits of val set (number of val subsets): {len(split_val)}")
             
         if len(test) > 0:
-            split_test = self.splitter(test, shuffle, prior=train_label_distribution)
+            split_test = self.splitter(test, shuffle_clients_test, prior=train_label_distribution)
             logger.info(f"Number of splits of test set (number of test subsets): {len(split_test)}")
         
         data_dict = {

@@ -47,8 +47,6 @@ def extend_data_cfg(cfg):
 
     cfg.data.domain_type = 'single' # Specify whether the data contains cross-domain or single-domain samples (to use the appropriate domain-specific template when creating the prompt)
     
-    cfg.data.shuffle = True # to shuffle all the dataset (previously to the split into val_server, test_server, train, val, test) 
-
     # DataLoader related args
     cfg.dataloader = CN()
     cfg.dataloader.type = 'base'
