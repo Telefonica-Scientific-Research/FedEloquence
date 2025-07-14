@@ -1,9 +1,14 @@
 import logging
 import numpy as np
+import torch
+import json
+import os
 
 from federatedscope.core.auxiliaries.splitter_builder import get_splitter
 from federatedscope.core.data import ClientData, StandaloneDataDict
 from torch.utils.data import Dataset, Subset
+
+from federatedscope.llm.dataloader.dataloader import get_tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +105,14 @@ class BaseDataTranslator:
             "Dataset is too small for the requested splits"
 
         if isinstance(dataset, Dataset):
+
+            # To verify and consult the generated subsets
+            model_type = self.global_cfg.model.type
+            model_path = model_type.split("@")[0]
+            path_to_subsets = "generated_FL_subsets"
+            os.makedirs(path_to_subsets, exist_ok=True)
+
+            tokenizer, _ = get_tokenizer(model_path, "data/" , 1000, "huggingface_llm")
             
             val_server_dataset = Subset(dataset, index[:len_server_dataset])
             logger.info(f"Length of the server val set: {len(val_server_dataset)}")
@@ -109,6 +122,18 @@ class BaseDataTranslator:
             
             train_dataset = Subset(dataset, 
                                     index[2*len_server_dataset : 2*len_server_dataset + train_size])
+                        
+            output_path = f"{path_to_subsets}/server_VAL.jsonl"
+            with open(output_path, 'w', encoding='utf-8') as f:
+                for sample in val_server_dataset:
+                    json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
+                    f.write(json_line + '\n')
+            output_path = f"{path_to_subsets}/server_TEST.jsonl"
+            with open(output_path, 'w', encoding='utf-8') as f:
+                for sample in test_server_dataset:
+                    json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
+                    f.write(json_line + '\n')
+
             """
             if self.global_cfg.federate.monolingual_exp.enable == False:
                 train_dataset = Subset(dataset, 
@@ -127,6 +152,24 @@ class BaseDataTranslator:
             test_dataset = Subset(dataset, 
                                 index[2*len_server_dataset + train_size + val_size : 2*len_server_dataset + train_size + 2*val_size])
             logger.info(f"Length test set (before splitting it into clients): {len(test_dataset)}")
+
+            output_path = f"{path_to_subsets}/clients_TRAIN.jsonl"
+            with open(output_path, 'w', encoding='utf-8') as f:
+                for sample in train_dataset:
+                    json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
+                    f.write(json_line + '\n')
+            
+            output_path = f"{path_to_subsets}/clients_VAL.jsonl"
+            with open(output_path, 'w', encoding='utf-8') as f:
+                for sample in val_dataset:
+                    json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
+                    f.write(json_line + '\n')
+
+            output_path = f"{path_to_subsets}/clients_TEST.jsonl"
+            with open(output_path, 'w', encoding='utf-8') as f:
+                for sample in test_dataset:
+                    json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
+                    f.write(json_line + '\n')
 
         else:
             val_server_dataset = [dataset[x] for x in index[:len_server_dataset]]

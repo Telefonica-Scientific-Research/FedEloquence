@@ -114,7 +114,8 @@ def load_json(file_path,
               instruction='instruction',
               input='input',
               output='output',
-              category='category'):
+              category='category',
+              domain='domain'):
     """
     This function reads a JSON file that contains a list of examples,
     each with an instruction, an input, an output, and a category. It
@@ -148,7 +149,8 @@ def load_json(file_path,
             instruction=item[instruction] if instruction in item else None,
             input=item[input] if input in item else None,
             output=item[output] if output in item else None,
-            category=item[category] if category in item else None)
+            category=item[category] if category in item else None,
+            domain=item[domain] if domain in item else None)
         new_list_data_dict.append(new_item)
     return new_list_data_dict
 
@@ -158,6 +160,7 @@ def load_jsonl(file_path,
                input='input',
                output='output',
                category='category',
+               domain='domain',
                is_gzip=False):
     """
     This function reads a JSONL file that contains one example per line,
@@ -193,7 +196,8 @@ def load_jsonl(file_path,
                 instruction=item[instruction] if instruction in item else None,
                 input=item[input] if input in item else None,
                 output=item[output] if output in item else None,
-                category=item[category] if category in item else None)
+                category=item[category] if category in item else None,
+                domain=item[domain] if domain in item else None)
             item = new_item
             list_data_dict.append(item)
     return list_data_dict
