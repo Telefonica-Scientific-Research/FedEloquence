@@ -381,8 +381,8 @@ class Client(BaseClient):
                 # If local_early_stop == false, client trains
                 if not self.local_early_stop:
                     if self.was_early_stop:
-                        logger.info(f"[Client #{self.ID}] Resuming training in round {self.state} after improvement in val_loss due to contributions from other clients' models.")
-                        # canviar a dalt que surti self.state nomes per la priemra que fa resuming!!! 
+                        # TODO: Update self.state so that it is only printed during the first resumed round
+                        logger.info(f"[Client #{self.ID}] Resuming training in round {self.state} after improvement in val_avg_loss due to contributions from other clients' models.")
                     sample_size, model_para_all, results = self.trainer.train()
                     if self._cfg.federate.share_local_model and not \
                             self._cfg.federate.online_aggr:
@@ -413,10 +413,10 @@ class Client(BaseClient):
                     eval_metrics = self.trainer_assert.evaluate(target_data_split_name="val")
                     client_key = f"client #{self.ID}"
                     logger.info(
-                        f"[Client {self.ID}] Double-check: Eval val_loss of model being sent: {eval_metrics['val_loss']:.6f} | "
-                        f"Recorded best val_loss: {self.best_results[client_key]['val_loss']:.6f}"
+                        f"[Client {self.ID}] Double-check: Eval val_avg_loss of model being sent: {eval_metrics['val_avg_loss']:.6f} | "
+                        f"Recorded best val_avg_loss: {self.best_results[client_key]['val_avg_loss']:.6f}"
                     )
-                    assert eval_metrics['val_loss'] == self.best_results[client_key]['val_loss']
+                    assert eval_metrics['val_avg_loss'] == self.best_results[client_key]['val_avg_loss']
 
             # Return the feedbacks to the server after local update
             if self._cfg.federate.use_ss:
@@ -584,7 +584,7 @@ class Client(BaseClient):
                                 strict=self._cfg.federate.share_local_model)
             
         client_key = f"client #{self.ID}"
-        use_global_early_stop = self._cfg.federate.use_global_early_stop
+
         use_local_early_stop = self._cfg.federate.use_local_early_stop
 
         if self.early_stopper.early_stopped and self._cfg.federate.method in ["local", "global"]:
@@ -626,7 +626,7 @@ class Client(BaseClient):
             )
                     
             if update_best_this_round:
-                logger.info(f"[Client {self.ID}] Validation improved in round {self.state}. New best val_loss: {self.best_results[client_key]['val_loss']}") 
+                logger.info(f"[Client {self.ID}] Validation improved in round {self.state}. New best val_avg_loss: {self.best_results[client_key]['val_avg_loss']}") 
                 
                 if self._cfg.federate.save_client_model:
                     path = add_prefix_to_path(f'client_{self.ID}_',
@@ -636,24 +636,22 @@ class Client(BaseClient):
                     logger.info(f"[Client {self.ID}] Saved improved model to {path}")
        
                 # Save the best-performing model and the round in which it was achieved
-                # self.best_client_model = copy.deepcopy(self.trainer.get_model_para())
-                # Segons copilot... chequejar
                 # Define a path to save the best model
                 self.best_model_path = add_prefix_to_path(f'client_{self.ID}_BEST_MODEL_', self._cfg.federate.adapt_save_to)
                 self.trainer.save_model(self.best_model_path, self.state)
                 self.round_in_which_best_client_model_is_saved = self.state
-                logger.info(f"[Client {self.ID}] Best model updated with val_loss: {self.best_results[client_key]['val_loss']}")
+                logger.info(f"[Client {self.ID}] Best model updated with val_avg_loss: {self.best_results[client_key]['val_avg_loss']}")
             else:
-                logger.info(f"[Client {self.ID}] No val_loss improvement this round.")
+                logger.info(f"[Client {self.ID}] No val_avg_loss improvement this round.")
 
-            # Update history (non LES-aware)
+            # Current LES-aware history
             # Ex: History_results from client X: History_results from client X: {'test_loss': [44.047755, 43.070358, ...], 'test_total': [33, 33, ...], 'test_avg_loss': [1.33478, 1.305162, ...], 'val_loss': [48.858271, 49.094452, ...], 'val_total': [33, 33, ...], 'val_avg_loss': [1.480554, 1.487711, ...]}
             self.history_results = merge_dict_of_results(self.history_results, formatted_eval_res['Results_raw'])
-            """ early stop per local i global (1 sol client) (per FedAvg es fa al Servidor amb la mean)
+            """ TODO: Allow cases for early stop in local and global methods (case of 1 single client) [without FedAvg (not using the mean of clients in server)]
             self.early_stopper.track_and_check(self.history_results[
                 self._cfg.eval.best_res_update_round_wise_key])
             """
-            logger.info(f"[Client {self.ID}] Validation loss history (non-LES): {self.history_results['val_loss']}")
+            logger.info(f"[Client {self.ID}] Validation loss history - LES with current: {self.history_results['val_avg_loss']}")
             
             if use_local_early_stop:
                 val_key = self._cfg.eval.best_res_update_round_wise_key
@@ -662,13 +660,13 @@ class Client(BaseClient):
                 self.local_early_stop = self.local_early_stopper.track_and_check(self.history_results[val_key])
                 logger.info(f"[Client {self.ID}] Local early stop status: {self.local_early_stop}")
                 
-                # LES-aware history
-                val_loss_to_use = self.best_results[client_key]['val_loss'] if self.local_early_stop else formatted_eval_res['Results_raw']['val_loss']
-                self.format_eval_res_LES['val_loss'] = val_loss_to_use
+                # Best LES-aware history
+                val_avg_loss_to_use = self.best_results[client_key]['val_avg_loss'] if self.local_early_stop else formatted_eval_res['Results_raw']['val_avg_loss']
+                self.format_eval_res_LES['val_avg_loss'] = val_avg_loss_to_use
                 self.history_results_with_bestloss = merge_dict_of_results(
                     self.history_results_with_bestloss, self.format_eval_res_LES
                 )
-                logger.info(f"[Client {self.ID}] Validation loss history (LES-aware): {self.history_results_with_bestloss['val_loss']}")
+                logger.info(f"[Client {self.ID}] Validation loss history - LES with best: {self.history_results_with_bestloss['val_avg_loss']}")
 
                 # Logging transitions
                 if self.local_early_stop and not self.was_early_stop:
@@ -677,16 +675,14 @@ class Client(BaseClient):
                     logger.info(f"[Client {self.ID}] Continuing in local early stopping mode.")
 
                 if self.local_early_stop:
-                    # Send current loss (to see improvement)
-                    metrics['val_loss_curr'] = metrics['val_loss']
-                    # Send the best val_loss if in LES
-                    metrics['val_loss'] = self.best_results[client_key]['val_loss']
-                    logger.info(f"[Client {self.ID}] Overwriting val_loss with best val_loss for transmission: {metrics['val_loss']}")
+                    # Save current val_avg_loss
+                    metrics['val_avg_loss_curr'] = metrics['val_avg_loss']
+                    # Save the best val_avg_loss
+                    metrics['val_avg_loss'] = self.best_results[client_key]['val_avg_loss']
 
                     # Load best model to get best metrics
                     self.trainer.load_model(self.best_model_path)
                     model_to_send = self.trainer.get_model_para()
-                    # Print results with best --> podrem senzillament fer copia i substituir amb best loss
                     self.trainer_best_model.update(model_to_send, strict=self._cfg.federate.share_local_model)
                     for split in self._cfg.eval.split:
                         # TODO: The time cost of evaluation is not considered here
@@ -702,7 +698,7 @@ class Client(BaseClient):
                         metrics_LES.update(**eval_metrics_LES)
                 else: 
                     metrics_LES = copy.deepcopy(metrics) # fallback if no early stopping: keep current round's metrics
-                    metrics['val_loss_curr'] = metrics['val_loss']
+                    metrics['val_avg_loss_curr'] = metrics['val_avg_loss']
 
                 formatted_eval_res_LES = self._monitor.format_eval_res(
                     metrics_LES,
@@ -714,13 +710,12 @@ class Client(BaseClient):
             
             # Include the `local_early_stop` flag in the metrics to keep the server informed of the client's training status
             metrics["local_early_stop"] = self.local_early_stop
-            # metrics['local_early_stop_best_loss'] = self.best_results[client_key]['val_loss'] if self.local_early_stop else None
-            logger.info(f"[Client {self.ID}] Val_loss sent to server: {metrics['val_loss']}")
-            logger.info(f"[Client {self.ID}] Track of best val_loss: {self.best_results[client_key]['val_loss']}")
+            logger.info(f"[Client {self.ID}] val_avg_loss sent to server: {metrics['val_avg_loss']}")
+            logger.info(f"[Client {self.ID}] Track of best val_avg_loss: {self.best_results[client_key]['val_avg_loss']}")
 
             if not use_local_early_stop:
                 metrics['local_early_stop'] = False  # mark as not in LES status
-                metrics['val_loss_curr'] = metrics['val_loss']
+                metrics['val_avg_loss_curr'] = metrics['val_avg_loss']
 
         self.comm_manager.send(
             Message(msg_type='metrics',

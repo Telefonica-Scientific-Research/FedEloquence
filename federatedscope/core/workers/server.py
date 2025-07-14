@@ -420,13 +420,12 @@ class Server(BaseServer):
                 )
 
         if use_local_early_stop:
-            # Local early stopping strategy: all clients are saturated
-            # When all clients have reached local early stopping, the FL process is considered complete, and the server notifies all clients accordingly
+            # When all clients have reached local early stop, the FL process is considered complete and the server notifies all clients accordingly
             reached_saturation = self.all_clients_saturated
             if reached_saturation:
                 logger.info(f"[Server] All clients saturated (general early stop reached in round {self.state}).")
 
-        # Decide if the process should be terminated this round
+        # Decide if the process should be terminated in this round
         should_terminate = (
             should_stop or
             reached_saturation or
@@ -456,9 +455,8 @@ class Server(BaseServer):
             if self.ds_rank == 0:
                 self.aggregator.save_model(path, self.state)
 
-        #if should_stop or self.state == self.total_round_num: # original hi havia això
+        #if should_stop or self.state == self.total_round_num:
         if should_terminate:
-        #if self.all_clients_saturated or self.state == self.total_round_num:
             logger.info('Server: Final evaluation is finished! Starting '
                         'merging results.')
             # last round or early stopped
@@ -563,30 +561,16 @@ class Server(BaseServer):
         # Get all the message & aggregate
         formatted_eval_res = self.merge_eval_results_from_all_clients()
         self.history_results = merge_dict_of_results(self.history_results, formatted_eval_res)
-        val_loss_history = self.history_results['Results_avg']['val_loss']
-        val_loss_history_curr = self.history_results['Results_avg']['val_loss_curr']
+        val_avg_loss_history = self.history_results['Results_avg']['val_avg_loss']
+        val_avg_loss_history_curr = self.history_results['Results_avg']['val_avg_loss_curr']
             
         if self._cfg.federate.use_local_early_stop:
-            logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES with best: {val_loss_history}")
-            logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES with current: {val_loss_history_curr}")
+            logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES with best: {val_avg_loss_history}")
+            logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES with current: {val_avg_loss_history_curr}")
         else: # No early stop at all or self._cfg.federate.use_global_early_stop
-            logger.info(f"[Server (mean)] Validation loss history (avg of clients): {val_loss_history}")
+            logger.info(f"[Server (mean)] Validation loss history (avg of clients): {val_avg_loss_history}")
         logger.info("\n")
-        
-        # no puc cridar dos cops a merge_eval_results_from_all_clients --> cal cridar un i
-        # si es global early stop --> retorna history normal
-        # si es local early stop --> retorna quan hi ha localearlystop history amb best loss a val_loss (ja que el client ha enviat best loss) i un nou valor amb el current: val_loss_curr
-        # mirar si quan local early stop s'imprimeix als logs val_loss_curr --> aixo ens permetria fer un bon print
-        #if self._cfg.federate.use_global_early_stop:
-        #    logger.info(f"[Server (mean)] Validation loss history (avg of clients): {val_loss_history}")
-        #else: # self._cfg.federate.use_local_early_stop
-        #    formatted_eval_res_LES_curr = self.merge_eval_results_from_all_clients(show_curr_val_loss=True)
-        #    self.history_results_LES_curr = merge_dict_of_results(self.history_results_LES_curr,
-        #                                             formatted_eval_res_LES_curr)
-        #    val_loss_history_LES_curr = self.history_results_LES['Results_avg']['val_loss']
-        #    logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES: {val_loss_history}")
-        #    logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES with curr: {val_loss_history_LES_curr}")        
-
+         
         if self.mode == 'standalone' and \
                 self._monitor.wandb_online_track and \
                 self._monitor.use_wandb:
@@ -712,31 +696,25 @@ class Server(BaseServer):
         """
         round = max(self.msg_buffer['eval'].keys())
         eval_msg_buffer = self.msg_buffer['eval'][round]
-        # Es guarden les mètriques de tots els clients que s'agreguen
+        # Metrics from all the clients in the aggregation are saved
         eval_res_participated = []
         eval_res_unseen_clients = []
         for client_id in eval_msg_buffer:
             client_eval = eval_msg_buffer[client_id]
             if client_eval is None:
                 continue
-            #if show_curr_val_loss:
-            #    if client_eval.get("local_early_stop", False):
-            #        if "val_loss_curr" in client_eval:
-            #            client_eval["val_loss"] = client_eval["val_loss_curr"]
             if client_id in self.unseen_clients_id:
                 eval_res_unseen_clients.append(eval_msg_buffer[client_id])
             else:
                 eval_res_participated.append(
                     eval_msg_buffer[client_id])
         
-        #logger.info(f'Eval_res_participated_clients (resultats que es fara la mitjana, cal enviar millor model i suposadament seguent round metriques seran similars a les best) {eval_res_participated_clients}')
-        # Per la ronda on s'activa el local_early_stop, es té en compte el mal resultat de val_loss, però ja a la següent ronda s'enviaria el val_loss tenint en compte el millor model
         # Monitor whether all clients are local ealrly stop or not (i.e., FL is finished)
         if self._cfg.federate.use_local_early_stop:
             self.all_clients_saturated = all(eval_res['local_early_stop'] for eval_res in eval_res_participated)
             logger.info(f"[Server] All clients saturated status: {self.all_clients_saturated}")
 
-        # Iterate over the list and delete the key from each dictionary (per deixar format del diccionari original)
+        # Iterate over the list and delete the key from each dictionary (to leave the original dictionary format)
         for res in eval_res_participated:
             if 'local_early_stop' in res:
                 res.pop('local_early_stop', None)
