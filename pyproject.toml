@@ -28,14 +28,14 @@ dependencies = [
     'torch==2.4.1',
     'torchaudio==2.4.1', 
     'torchvision==0.19.1',
-    'deepspeed',
-    'cupy-cuda12x',
+    'deepspeed==0.16.5',
+    'cupy-cuda12x=13.4.1',
     'tokenizers==0.21.0',
     'transformers==4.48.2',
     'accelerate==0.20.3',
     'peft==0.3.0',
     'sentencepiece==0.1.99',
-    'rouge-score',
+    'rouge-score==0.1.2',
 ]
 
 [build-system]
