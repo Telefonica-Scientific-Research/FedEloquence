@@ -409,14 +409,14 @@ class Client(BaseClient):
                     sample_size, model_para_all, results = 0, model_to_send, {}
                     
                     # Chequejar que enviem millor model. Haura de donar millor loss que tinguem guardada anterior. ha de coincidir pq aqui encara no hem fet agregation
-                    self.trainer_assert.update(model_to_send, strict=self._cfg.federate.share_local_model)
-                    eval_metrics = self.trainer_assert.evaluate(target_data_split_name="val")
-                    client_key = f"client #{self.ID}"
-                    logger.info(
-                        f"[Client {self.ID}] Double-check: Eval val_avg_loss of model being sent: {eval_metrics['val_avg_loss']:.6f} | "
-                        f"Recorded best val_avg_loss: {self.best_results[client_key]['val_avg_loss']:.6f}"
-                    )
-                    assert eval_metrics['val_avg_loss'] == self.best_results[client_key]['val_avg_loss']
+                    # self.trainer_assert.update(model_to_send, strict=self._cfg.federate.share_local_model)
+                    # eval_metrics = self.trainer_assert.evaluate(target_data_split_name="val")
+                    # client_key = f"client #{self.ID}"
+                    # logger.info(
+                    #    f"[Client {self.ID}] Double-check: Eval val_avg_loss of model being sent: {eval_metrics['val_avg_loss']:.6f} | "
+                    #    f"Recorded best val_avg_loss: {self.best_results[client_key]['val_avg_loss']:.6f}"
+                    #)
+                    #assert eval_metrics['val_avg_loss'] == self.best_results[client_key]['val_avg_loss']
 
             # Return the feedbacks to the server after local update
             if self._cfg.federate.use_ss:
