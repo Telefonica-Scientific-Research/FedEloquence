@@ -31,6 +31,7 @@ def parse_args(args=None):
                         help='See federatedscope/core/configs for all options',
                         default=None,
                         nargs=argparse.REMAINDER)
+    parser.add_argument('--model_to_eval', type=str, required=False, help='Type of the model to evaluate (final, client 1 (best)...)')
     parse_res = parser.parse_args(args)
     init_cfg = global_cfg.clone()
     # when users type only "main.py" or "main.py help"

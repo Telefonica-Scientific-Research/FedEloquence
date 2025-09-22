@@ -2,6 +2,7 @@ import sys
 import logging
 import torch
 import transformers
+import os
 
 transformers.logging.set_verbosity(40)
 
@@ -40,7 +41,7 @@ class FSChatBot(object):
         history: A list of lists of integers representing the tokenized input
             and output texts of previous turns.
     """
-    def __init__(self, config, print_model_arch=False):
+    def __init__(self, config, model_to_eval="final", print_model_arch=False):
         """
         Initializes the chatbot with the given configuration.
 
@@ -62,7 +63,18 @@ class FSChatBot(object):
             self.model = wrap_offsite_tuning_for_eval(self.model, config)
         else:
             try:
-                ckpt = torch.load(config.federate.save_to, map_location='cpu')
+                original_path = config.federate.adapt_save_to
+                dir_name = os.path.dirname(original_path)
+                file_name = os.path.basename(original_path)
+                
+                if model_to_eval == "final":
+                    specific_file_name = f"final_{file_name}"
+                else: #BEST MODEL of a client
+                    specific_file_name = f"{model_to_eval}_BEST_MODEL_{file_name}"
+                
+                final_path = os.path.join(dir_name, specific_file_name)
+                print("Checkpoint to use for evaluation:", final_path)
+                ckpt = torch.load(final_path, map_location='cpu')
                 if 'model' and 'cur_round' in ckpt:
                     self.model.load_state_dict(ckpt['model'])
                 else:
@@ -100,6 +112,7 @@ class FSChatBot(object):
             A string representing the source text with a prompt template.
         """
         source = {'instruction': input_text}
+        # PROMPT = PROMPT_DICT_SUM if config.llm.chat.prompt_summary else PROMPT_DICT
         return PROMPT_DICT['prompt_no_input'].format_map(source)
 
     def predict(self, input_text, use_history=True, use_prompt=True):
@@ -140,9 +153,73 @@ class FSChatBot(object):
             self.tokenizer.decode(response[0][input_ids.shape[1]:],
                                   skip_special_tokens=True)
         return response_tokens
-
+    
+    """ Using chat_template from the tokenizer
     @torch.no_grad()
     def generate(self, input_text, generate_kwargs={}):
+        
+        #Generates a response for the input chat messages using the model and
+        #additional arguments.
+
+        #Args:
+        #    messages: A list of dicts with the chat format, e.g.
+        #        [ {"role": "user", "content": "Hello!"} ]
+        #    generate_kwargs: A dictionary of keyword arguments to pass to the
+        #        model's generate method. Default is an empty dictionary.
+
+        #Returns:
+        #    A string or a list of strings representing the chatbot's response text.
+        #    If the generate_kwargs contains num_return_sequences > 1,
+        #    then a list of strings is returned. Otherwise, a single string is returned.
+        #
+        ## Build chat-style prompt using the tokenizer's chat template
+        from datetime import datetime
+
+        message = [ { "role": "user", "content": input_text } ]
+
+        date_string = datetime.today().strftime('%Y-%m-%d')
+        prompt = self.tokenizer.apply_chat_template(
+            message,
+            tokenize=False,
+            add_generation_prompt=True,  # ensures model knows it's generating
+            date_string=date_string
+        )        
+
+        # Tokenize the constructed prompt
+        encoded = self.tokenizer(
+            prompt,
+            padding=False,
+            add_special_tokens=True,
+            return_tensors="pt",
+        )
+        input_ids = encoded.input_ids.to(self.device)
+        attention_mask = encoded.attention_mask.to(self.device)
+        self.model.eval()
+
+        # Generate continuation
+        output_ids = self.model.generate(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            max_new_tokens=1300
+        )
+
+        # Decode only the generated part
+        responses = []
+        for i in range(output_ids.shape[0]):
+            responses.append(
+                self.tokenizer.decode(
+                    output_ids[i][input_ids.shape[1]:],
+                    skip_special_tokens=True,
+                    ignore_tokenization_space=True
+                )
+            )
+
+        return responses if len(responses) > 1 else responses[0]
+    """
+    
+    @torch.no_grad()
+    def generate(self, input_text, generate_kwargs={}):
+        
         """
         Generates a response for the input text using the model and
         additional arguments.
@@ -158,6 +235,7 @@ class FSChatBot(object):
             then a list of strings is returned. Otherwise, a single string is
             returned.
         """
+
         input_text = self.tokenizer(
             input_text,
             padding=False,
@@ -166,7 +244,6 @@ class FSChatBot(object):
         )
         input_ids = input_text.input_ids.to(self.device)
         attention_mask = input_text.attention_mask.to(self.device)
-
         output_ids = self.model.generate(input_ids=input_ids,
                                          attention_mask=attention_mask,
                                          **generate_kwargs)
@@ -175,12 +252,13 @@ class FSChatBot(object):
             response.append(
                 self.tokenizer.decode(output_ids[i][input_ids.shape[1]:],
                                       skip_special_tokens=True,
-                                      ignore_tokenization_space=True))
+                                      ignore_tokenization_space=True)
+            )
 
         if len(response) > 1:
             return response
         return response[0]
-
+    
     def clear(self):
         """Clears the history of previous turns.
 
