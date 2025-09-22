@@ -14,6 +14,7 @@ AGGREGATOR_TYPE = {
     "global": "no_communication",  # only one client locally train all data,
     # i.e., totally global training
     "fedavg": "clients_avg",  # FedAvg
+    "fedvalloss": "clients_val_loss", # FedValLoss
     "pfedme": "server_clients_interpolation",  # pFedMe,  + server-clients
     # interpolation
     "ditto": "clients_avg",  # Ditto
@@ -21,11 +22,13 @@ AGGREGATOR_TYPE = {
     "gcflplus": "clients_avg",
     "fedgc": "clients_avg",
     "fedopt": "fedopt"
+    
 }
 
 CLIENTS_TYPE = {
     "local": "normal",
     "fedavg": "normal",  # FedAvg
+    "fedvalloss": "normal",  # FedValLoss
     "pfedme": "normal_loss_regular",  # pFedMe, + regularization-based local
     # loss
     "ditto": "normal",  # Ditto, + local training for distinct personalized
@@ -39,6 +42,7 @@ CLIENTS_TYPE = {
 SERVER_TYPE = {
     "local": "normal",
     "fedavg": "normal",  # FedAvg
+    "fedvalloss": "normal",  # FedValLoss
     "pfedme": "normal",  # pFedMe, + regularization-based local loss
     "ditto": "normal",  # Ditto, + local training for distinct personalized
     # models

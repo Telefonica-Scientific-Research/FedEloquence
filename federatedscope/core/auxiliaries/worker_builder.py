@@ -31,6 +31,7 @@ def get_client_cls(cfg):
         ==================== ==============================================
         ``local``            ``core.workers.Client``
         ``fedavg``           ``core.workers.Client``
+        ``fedvalloss``        ``core.workers.Client``
         ``pfedme``           ``core.workers.Client``
         ``ditto``            ``core.workers.Client``
         ``fedex``            ``autotune.fedex.FedExClient``
@@ -132,6 +133,7 @@ def get_server_cls(cfg):
         ==================== ==============================================
         ``local``            ``core.workers.Server``
         ``fedavg``           ``core.workers.Server``
+        ``fedvalloss``        ``core.workers.Server``
         ``pfedme``           ``core.workers.Server``
         ``ditto``            ``core.workers.Server``
         ``fedex``            ``autotune.fedex.FedExServer``

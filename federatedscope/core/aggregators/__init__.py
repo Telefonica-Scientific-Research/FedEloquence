@@ -2,6 +2,8 @@ from federatedscope.core.aggregators.aggregator import Aggregator, \
     NoCommunicationAggregator
 from federatedscope.core.aggregators.clients_avg_aggregator import \
     ClientsAvgAggregator, OnlineClientsAvgAggregator
+from federatedscope.core.aggregators.clients_valloss_aggregator import \
+    ClientsValLossAggregator, OnlineClientsValLossAggregator
 from federatedscope.core.aggregators.asyn_clients_avg_aggregator import \
     AsynClientsAvgAggregator
 from federatedscope.core.aggregators.server_clients_interpolate_aggregator \
@@ -21,6 +23,8 @@ __all__ = [
     'NoCommunicationAggregator',
     'ClientsAvgAggregator',
     'OnlineClientsAvgAggregator',
+    'ClientsValLossAggregator',
+    'OnlineClientsValLossAggregator',
     'AsynClientsAvgAggregator',
     'ServerClientsInterpolateAggregator',
     'FedOptAggregator',

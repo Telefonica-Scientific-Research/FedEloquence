@@ -32,7 +32,10 @@ def get_aggregator(method, model=None, device=None, online=False, config=None):
         ``fedavg``                          \
         ``core.aggregators.OnlineClientsAvgAggregator`` or \
         ``core.aggregators.AsynClientsAvgAggregator`` or \
-        ``ClientsAvgAggregator``
+        ``ClientsAvgAggregator`` \ 
+        ``fedvalloss``                          \
+        ``core.aggregators.OnlineClientsValLossAggregator`` or \
+        ``core.aggregators.ClientsValLossAggregator`` \
         ``pfedme``                          \
         ``core.aggregators.ServerClientsInterpolateAggregator``
         ``ditto``                           \
@@ -56,14 +59,17 @@ def get_aggregator(method, model=None, device=None, online=False, config=None):
         return FedAvgAggregator(model=model, device=device)
     else:
         from federatedscope.core.aggregators import ClientsAvgAggregator, \
-            OnlineClientsAvgAggregator, ServerClientsInterpolateAggregator, \
+            OnlineClientsAvgAggregator, ClientsValLossAggregator, \
+            OnlineClientsValLossAggregator, ServerClientsInterpolateAggregator, \
             FedOptAggregator, NoCommunicationAggregator, \
             AsynClientsAvgAggregator, KrumAggregator, \
             MedianAggregator, TrimmedmeanAggregator, \
-            BulyanAggregator,  NormboundingAggregator
+            BulyanAggregator,  NormboundingAggregator \
+            
 
     STR2AGG = {
         'fedavg': ClientsAvgAggregator,
+        'fedvalloss': ClientsValLossAggregator,
         'krum': KrumAggregator,
         'median': MedianAggregator,
         'bulyan': BulyanAggregator,
@@ -108,7 +114,18 @@ def get_aggregator(method, model=None, device=None, online=False, config=None):
                                ClientsAvgAggregator)(model=model,
                                                      device=device,
                                                      config=config)
-
+    elif aggregator_type == 'clients_val_loss':
+        if online:
+            return OnlineClientsValLossAggregator(
+                model=model,
+                device=device,
+                config=config,
+                src_device=device
+                if config.federate.share_local_model else 'cpu')
+        else:
+            return ClientsValLossAggregator(model=model,
+                                            device=device,
+                                            config=config)
     elif aggregator_type == 'server_clients_interpolation':
         return ServerClientsInterpolateAggregator(
             model=model,
