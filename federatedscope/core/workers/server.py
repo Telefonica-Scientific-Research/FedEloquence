@@ -341,10 +341,10 @@ class Server(BaseServer):
                 if self.state % self._cfg.eval.freq == 0 and self.state != \
                         self.total_round_num:
                     #  Evaluate
-                    logger.info(f'\n')
+                    logger.info("-" * 100)
                     logger.info(f'Server: Starting evaluation at the end '
                                 f'of round {self.state - 1}.')
-                    self.eval() # borrrar lo seguent quan hagi mirat
+                    self.eval()
                     
                 if self.state < self.total_round_num:
                     # Move to next round of training
@@ -380,29 +380,12 @@ class Server(BaseServer):
         whether to early stop.
         """
 
-        """ de moment ho comento peor la gracia seria poder triar si vull fer local early stop o el seu early stop generic, investigar
-        # early stopping
-        if "Results_weighted_avg" in self.history_results and \
-                self._cfg.eval.best_res_update_round_wise_key in \
-                self.history_results['Results_weighted_avg']:
-            should_stop = self.early_stopper.track_and_check(
-                self.history_results['Results_weighted_avg'][
-                    self._cfg.eval.best_res_update_round_wise_key])
-        elif "Results_avg" in self.history_results and \
-                self._cfg.eval.best_res_update_round_wise_key in \
-                self.history_results['Results_avg']:
-            should_stop = self.early_stopper.track_and_check(
-                self.history_results['Results_avg'][
-                    self._cfg.eval.best_res_update_round_wise_key])
-        else:
-            should_stop = False
-        """
         should_stop = False
         reached_saturation = False
         use_global_early_stop = self._cfg.federate.use_global_early_stop
         use_local_early_stop = self._cfg.federate.use_local_early_stop
 
-        # Global early stopping (enabled via config)
+        # Global early stopping (enabled via config) - original FederatedScope early stopping
         if use_global_early_stop:
             weighted_key = "Results_weighted_avg"
             avg_key = "Results_avg"
@@ -419,13 +402,14 @@ class Server(BaseServer):
                     self.history_results[avg_key][tracked_metric]
                 )
 
+        # Local Dynamic Early Stopping (enabled via config) - our novel approach
         if use_local_early_stop:
-            # When all clients have reached local early stop, the FL process is considered complete and the server notifies all clients accordingly
+            # To check if all clients have reached local early stopping (i.e., saturated) to terminate FL
             reached_saturation = self.all_clients_saturated
             if reached_saturation:
-                logger.info(f"[Server] All clients saturated (general early stop reached in round {self.state}).")
+                logger.info(f"[Server] All clients have saturated (general early stop reached in round {self.state}).")
 
-        # Decide if the process should be terminated in this round
+        # FL is terminated when one of the two early stop strategies is triggered, or the max round is reached
         should_terminate = (
             should_stop or
             reached_saturation or
@@ -433,6 +417,7 @@ class Server(BaseServer):
         )
 
         if should_terminate:
+            # The FL process is considered complete and the server notifies all clients accordingly
             logger.info(f"[Server] Training finished in round {self.state}.")
             self._monitor.global_converged()
             # Notify clients
@@ -455,7 +440,6 @@ class Server(BaseServer):
             if self.ds_rank == 0:
                 self.aggregator.save_model(path, self.state)
 
-        #if should_stop or self.state == self.total_round_num:
         if should_terminate:
             logger.info('Server: Final evaluation is finished! Starting '
                         'merging results.')
@@ -482,17 +466,20 @@ class Server(BaseServer):
         for model_idx in range(self.model_num):
             model = self.models[model_idx]
             aggregator = self.aggregators[model_idx]
-            msg_list = list()
-            staleness = list()
-        
-            for client_id in train_msg_buffer.keys():
+            msg_list = []
+            staleness = []
+            # Servers collects and saves the best val_avg_loss of each client for loss-aware weighted aggregation 
+            losses_for_weighting = {}
+
+            for client_id, buffer_entry in train_msg_buffer.items():
+                # Buffer_entry is a tuple: (train_data_size, model_para, client_best_val_loss)
                 if self.model_num == 1:
-                    msg_list.append(train_msg_buffer[client_id])
+                    msg_list.append(buffer_entry)
+                    losses_for_weighting[client_id] = buffer_entry[2]
                 else:
-                    train_data_size, model_para_multiple = \
-                        train_msg_buffer[client_id]
-                    msg_list.append(
-                        (train_data_size, model_para_multiple[model_idx]))
+                    train_data_size, model_para_multiple, client_best_val_loss = buffer_entry
+                    msg_list.append((train_data_size, model_para_multiple[model_idx]))
+                    losses_for_weighting[client_id] = client_best_val_loss
 
                 # The staleness of the messages in train_msg_buffer
                 # should be 0
@@ -520,6 +507,7 @@ class Server(BaseServer):
                 'client_feedback': msg_list,
                 'recover_fun': self.recover_fun,
                 'staleness': staleness,
+                'losses_for_weighting': losses_for_weighting,
             }
             # logger.info(f'The staleness is {staleness}')
             result = aggregator.aggregate(agg_info)
@@ -561,16 +549,22 @@ class Server(BaseServer):
         # Get all the message & aggregate
         formatted_eval_res = self.merge_eval_results_from_all_clients()
         self.history_results = merge_dict_of_results(self.history_results, formatted_eval_res)
+
+        # Val_avg_loss_history keeps track of the best validation loss that each client has achieved so far. This value is sent to the server only when the client's patience has been reached, meaning it's the best result the client has seen up to that point.
+        # Val_avg_loss_history_curr stores the current validation loss of each client during the current evaluation round. This is the loss obtained by testing the latest aggregated model (downloaded from the server) on the client's local validation data.
+        # If the current validation loss (val_avg_loss_history_curr) is better (i.e., lower) than the best so far (val_avg_loss_history), then the best is updated to the current. In future training rounds, the client will send this new best loss to the server.
         val_avg_loss_history = self.history_results['Results_avg']['val_avg_loss']
         val_avg_loss_history_curr = self.history_results['Results_avg']['val_avg_loss_curr']
             
         if self._cfg.federate.use_local_early_stop:
-            logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES with best: {val_avg_loss_history}")
-            logger.info(f"[Server (mean)] Validation loss history (avg of clients) - LES with current: {val_avg_loss_history_curr}")
-        else: # No early stop at all or self._cfg.federate.use_global_early_stop
-            logger.info(f"[Server (mean)] Validation loss history (avg of clients): {val_avg_loss_history}")
-        logger.info("\n")
-         
+            # Local Dynamic Early Stopping (LDES)
+            logger.info(f"[Server (mean)] History of BEST validation loss (average across clients) using LDES: {val_avg_loss_history}")
+            logger.info(f"[Server (mean)] History of CURRENT validation loss (average across clients) using LDES: {val_avg_loss_history_curr}")
+        else: 
+            # No early stop at all or global early stopping (original FederatedScope early stopping)
+            logger.info(f"[Server (mean)] History of validation loss (average across clients): {val_avg_loss_history}")
+        logger.info("-" * 100)
+
         if self.mode == 'standalone' and \
                 self._monitor.wandb_online_track and \
                 self._monitor.use_wandb:
@@ -709,7 +703,7 @@ class Server(BaseServer):
                 eval_res_participated.append(
                     eval_msg_buffer[client_id])
         
-        # Monitor whether all clients are local ealrly stop or not (i.e., FL is finished)
+        # Server checks if all clients have reached local early stopping in that round (i.e., are saturated) when LDES is enabled
         if self._cfg.federate.use_local_early_stop:
             self.all_clients_saturated = all(eval_res['local_early_stop'] for eval_res in eval_res_participated)
             logger.info(f"[Server] All clients saturated status: {self.all_clients_saturated}")
@@ -1062,13 +1056,13 @@ class Server(BaseServer):
         To conduct evaluation. When ``cfg.federate.make_global_eval=True``, \
         a global evaluation is conducted by the server.
         """
-        if self._cfg.federate.make_global_eval:
+        # Perform evaluation in server using server data
+        if self._cfg.federate.make_global_eval and not self._cfg.federate.make_clients_eval:
             # By default, the evaluation is conducted one-by-one for all
             # internal models;
             # for other cases such as ensemble, override the eval function
             for i in range(self.model_num):
                 trainer = self.trainers[i]
-                # Preform evaluation in server
                 metrics = {}
                 for split in self._cfg.eval.split: 
                     eval_metrics = trainer.evaluate(
@@ -1076,7 +1070,7 @@ class Server(BaseServer):
                     metrics.update(**eval_metrics)
                 formatted_eval_res = self._monitor.format_eval_res(
                     metrics,
-                    rnd=self.state,
+                    rnd=(self.state-1),
                     role='Server #',
                     forms=self._cfg.eval.report,
                     return_raw=self._cfg.federate.make_global_eval)
@@ -1089,10 +1083,13 @@ class Server(BaseServer):
                 self._monitor.save_formatted_results(formatted_eval_res)
                 logger.info(formatted_eval_res) 
             self.check_and_save()
-        else:
+        elif self._cfg.federate.make_clients_eval and not self._cfg.federate.make_global_eval:
+            # Perform evaluation in clients (obtain clients' evaluation results and the mean of them)
+            self.broadcast_model_para(msg_type='evaluate',
+                                      filter_unseen_clients=False)
+        elif self._cfg.federate.make_clients_eval and self._cfg.federate.make_global_eval:
             for i in range(self.model_num):
                 trainer = self.trainers[i]
-                # Preform evaluation in server
                 metrics = {}
                 for split in self._cfg.eval.split: 
                     eval_metrics = trainer.evaluate(
@@ -1103,7 +1100,7 @@ class Server(BaseServer):
                     rnd=(self.state-1),
                     role='Server #',
                     forms=self._cfg.eval.report,
-                    return_raw=True)
+                    return_raw=self._cfg.federate.make_global_eval)
                 self._monitor.update_best_result(
                     self.best_results,
                     formatted_eval_res['Results_raw'],
@@ -1111,10 +1108,12 @@ class Server(BaseServer):
                 self.history_results = merge_dict_of_results(
                     self.history_results, formatted_eval_res)
                 self._monitor.save_formatted_results(formatted_eval_res)
-                logger.info(formatted_eval_res) 
-            # Preform evaluation in clients
+                logger.info(formatted_eval_res)
+            # Perform evaluation in clients (obtain clients' evaluation results and the mean of them)
             self.broadcast_model_para(msg_type='evaluate',
                                       filter_unseen_clients=False)
+        else: # make_global_eval = False and make_clients_eval = False
+            pass
 
     def callback_funcs_model_para(self, message: Message):
         """
