@@ -1,0 +1,85 @@
+criterion:
+  type: CrossEntropyLoss
+data:
+  root: data/
+  splits:
+  - 0.96
+  - 0.02
+  - 0.02
+  splitter: iid
+  type: alpaca_cleaned_8c.jsonl@llm
+  domain_type: cross
+dataloader:
+  batch_size: 2
+device: 0
+early_stop:
+  patience: 1
+eval:
+  count_flops: false
+  freq: 5
+  split:
+  - val
+  metrics:
+  - loss
+  len_server_dataset: 4008
+  best_res_update_round_wise_key: val_avg_loss
+expname_tag: ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedvalloss
+federate:
+  client_num: 8
+  master_port: 29340
+  method: FedValLoss
+  mode: standalone
+  online_aggr: false
+  process_num: 1
+  adapt_save_to: finetuned_adapters/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedvalloss.ckpt
+  share_local_model: true
+  total_round_num: 5000
+  use_global_early_stop: False
+  use_local_early_stop: True
+  shuffle_all_data: False
+  shuffle_train_clients: True
+  shuffle_val_clients: True
+  shuffle_test_clients: True
+  make_global_eval: True
+  make_clients_eval: True
+llm:
+  adapter:
+    args:
+    - adapter_method: lora
+      adapter_package: peft
+      lora_alpha: 32
+      lora_dropout: 0.05
+      r: 16
+      target_modules:
+      - q_proj
+      - k_proj
+      - v_proj
+      - o_proj
+      - gate_proj
+      - up_proj
+      - down_proj
+      - lm_head
+    use: true
+  chat:
+    max_len: 1500
+  deepspeed:
+    ds_config: federatedscope/llm/deepspeed/ds_config_128bs_16grad_2mbs.json
+    use: true
+  tok_len: 1300
+  prompt_path: prompt_templates/okapi_18c
+  model_save_to: models_with_ft_adapt/multilingual/alpaca_cleaned/8c/early_stop/salamandra-2b-instruct/fedvalloss
+  to_hf_format: 
+    use: false
+    hash_code_model_snapshot: ""
+model:
+  type: BSC-LT/salamandra-2b-instruct@huggingface_llm
+train:
+  batch_or_epoch: batch
+  is_enable_half: true
+  local_update_steps: 160
+  optimizer:
+    lr: 0.001
+    weight_decay: 0.0
+trainer:
+  type: llmtrainer
+use_gpu: true
