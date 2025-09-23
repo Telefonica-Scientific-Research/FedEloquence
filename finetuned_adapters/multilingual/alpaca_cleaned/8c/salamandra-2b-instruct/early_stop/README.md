@@ -1,1 +1,1 @@
-Directory in which LoRA trained adapters are saved
+Directory in which trained adapters are saved
