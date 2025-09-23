@@ -64,7 +64,7 @@ def extend_fl_setting_cfg(cfg):
     cfg.federate.shuffle_test_clients = False #shuffle train data before splitting into clients' subsets
     
     cfg.federate.use_global_early_stop = False
-    cfg.federate.use_local_early_stop = False
+    cfg.federate.use_LDES = False
 
     # ---------------------------------------------------------------------- #
     # Distribute training related options

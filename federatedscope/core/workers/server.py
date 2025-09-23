@@ -383,7 +383,7 @@ class Server(BaseServer):
         should_stop = False
         reached_saturation = False
         use_global_early_stop = self._cfg.federate.use_global_early_stop
-        use_local_early_stop = self._cfg.federate.use_local_early_stop
+        use_LDES = self._cfg.federate.use_LDES
 
         # Global early stopping (enabled via config) - original FederatedScope early stopping
         if use_global_early_stop:
@@ -403,7 +403,7 @@ class Server(BaseServer):
                 )
 
         # Local Dynamic Early Stopping (enabled via config) - our novel approach
-        if use_local_early_stop:
+        if use_LDES:
             # To check if all clients have reached local early stopping (i.e., saturated) to terminate FL
             reached_saturation = self.all_clients_saturated
             if reached_saturation:
@@ -556,7 +556,7 @@ class Server(BaseServer):
         val_avg_loss_history = self.history_results['Results_avg']['val_avg_loss']
         val_avg_loss_history_curr = self.history_results['Results_avg']['val_avg_loss_curr']
             
-        if self._cfg.federate.use_local_early_stop:
+        if self._cfg.federate.use_LDES:
             # Local Dynamic Early Stopping (LDES)
             logger.info(f"[Server (mean)] History of BEST validation loss (average across clients) using LDES: {val_avg_loss_history}")
             logger.info(f"[Server (mean)] History of CURRENT validation loss (average across clients) using LDES: {val_avg_loss_history_curr}")
@@ -704,7 +704,7 @@ class Server(BaseServer):
                     eval_msg_buffer[client_id])
         
         # Server checks if all clients have reached local early stopping in that round (i.e., are saturated) when LDES is enabled
-        if self._cfg.federate.use_local_early_stop:
+        if self._cfg.federate.use_LDES:
             self.all_clients_saturated = all(eval_res['local_early_stop'] for eval_res in eval_res_participated)
             logger.info(f"[Server] All clients saturated status: {self.all_clients_saturated}")
 

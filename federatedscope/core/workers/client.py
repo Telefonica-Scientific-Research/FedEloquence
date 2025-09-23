@@ -596,7 +596,7 @@ class Client(BaseClient):
             
         client_key = f"client #{self.ID}"
 
-        use_local_early_stop = self._cfg.federate.use_local_early_stop
+        use_LDES = self._cfg.federate.use_LDES
 
         if self.early_stopper.early_stopped and self._cfg.federate.method in ["local", "global"]:
             metrics = list(self.best_results.values())[0]
@@ -667,7 +667,7 @@ class Client(BaseClient):
             logger.info(f"[Client {self.ID}] History of CURRENT validation: {self.history_results['val_avg_loss']}")
 
             # If using Local Dynamic Early Stopping (LDES)
-            if use_local_early_stop:
+            if use_LDES:
                 val_key = self._cfg.eval.best_res_update_round_wise_key
                 # Save the previous state of local_early_stop to determine whether the client is initiating training for the first time or resuming after early stopping
                 self.was_early_stop = self.local_early_stop
@@ -739,7 +739,7 @@ class Client(BaseClient):
             logger.info(f"[Client {self.ID}] Track of best val_avg_loss: {self.best_results[client_key]['val_avg_loss']}")
 
             # If not using LDES
-            if not use_local_early_stop:
+            if not use_LDES:
                 # We don't use local_early_stop flag
                 metrics['local_early_stop'] = False
                 # We fill in the val_avg_loss_curr with the current round's val_avg_loss. 

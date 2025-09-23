@@ -36,7 +36,7 @@ federate:
   share_local_model: true
   total_round_num: 5000
   use_global_early_stop: True
-  use_local_early_stop: False
+  use_LDES: False
   shuffle_all_data: False
   shuffle_train_clients: True
   shuffle_val_clients: True
