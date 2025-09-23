@@ -67,7 +67,7 @@ llm:
     ds_config: federatedscope/llm/deepspeed/ds_config_128bs_16grad_2mbs.json
     use: true
   tok_len: 1300
-  prompt_path: prompt_templates/okapi_18c
+  prompt_path: prompt_templates/alpaca_cleaned_8c
   model_save_to: models_with_ft_adapt/multilingual/alpaca_cleaned/8c/early_stop/salamandra-2b-instruct/fedprox
   to_hf_format: 
     use: false
