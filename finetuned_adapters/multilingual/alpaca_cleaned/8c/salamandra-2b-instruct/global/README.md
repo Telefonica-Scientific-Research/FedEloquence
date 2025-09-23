@@ -1,0 +1,1 @@
+Directory in which trained adapters are saved for local training
