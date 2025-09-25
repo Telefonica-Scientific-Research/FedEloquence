@@ -114,21 +114,6 @@ class Client(BaseClient):
                                    is_attacker=self.is_attacker,
                                    monitor=self._monitor)
         self.device = device
-
-        # Trainer per testejar que enviem millor model. AIXO ES BORRARA
-        self.trainer_assert = get_trainer(model=model,
-                                   data=data,
-                                   device=device,
-                                   config=self._cfg,
-                                   is_attacker=self.is_attacker,
-                                   monitor=self._monitor)
-        self.trainer_best_model = get_trainer(model=model,
-                                    data=data,
-                                    device=device,
-                                    config=self._cfg,
-                                    is_attacker=self.is_attacker,
-                                    monitor=self._monitor)
-        
         self.best_model_path = ""
 
         # For client-side evaluation
@@ -410,16 +395,6 @@ class Client(BaseClient):
                     model_to_send = self.trainer.get_model_para()
                     sample_size, model_para_all, results = 0, model_to_send, {}
                     
-                    # Chequejar que enviem millor model. Haura de donar millor loss que tinguem guardada anterior. ha de coincidir pq aqui encara no hem fet agregation
-                    # self.trainer_assert.update(model_to_send, strict=self._cfg.federate.share_local_model)
-                    # eval_metrics = self.trainer_assert.evaluate(target_data_split_name="val")
-                    # client_key = f"client #{self.ID}"
-                    # logger.info(
-                    #    f"[Client {self.ID}] Double-check: Eval val_avg_loss of model being sent: {eval_metrics['val_avg_loss']:.6f} | "
-                    #    f"Recorded best val_avg_loss: {self.best_results[client_key]['val_avg_loss']:.6f}"
-                    #)
-                    #assert eval_metrics['val_avg_loss'] == self.best_results[client_key]['val_avg_loss']
-
             # Return the feedbacks to the server after local update
             if self._cfg.federate.use_ss:
                 assert not self.is_unseen_client, \
@@ -698,12 +673,8 @@ class Client(BaseClient):
 
                     # Load best model to get the best metrics (Valid and Test if needed)
                     self.trainer.load_model(self.best_model_path)
-                    #### model_to_send = self.trainer.get_model_para()
-                    #### self.trainer_best_model.update(model_to_send, strict=self._cfg.federate.share_local_model)
                     for split in self._cfg.eval.split:
                         # TODO: The time cost of evaluation is not considered here
-                        #### eval_metrics_LDES = self.trainer_best_model.evaluate(
-                        ####     target_data_split_name=split)
                         eval_metrics_LDES = self.trainer.evaluate(
                             target_data_split_name=split)
                         if self._cfg.federate.mode == 'distributed':
