@@ -341,7 +341,6 @@ class Server(BaseServer):
                 if self.state % self._cfg.eval.freq == 0 and self.state != \
                         self.total_round_num:
                     #  Evaluate
-                    logger.info("-" * 100)
                     logger.info(f'Server: Starting evaluation at the end '
                                 f'of round {self.state - 1}.')
                     self.eval()
@@ -563,7 +562,6 @@ class Server(BaseServer):
         else: 
             # No early stop at all or global early stopping (original FederatedScope early stopping)
             logger.info(f"[Server (mean)] History of validation loss (average across clients): {val_avg_loss_history}")
-        logger.info("-" * 100)
 
         if self.mode == 'standalone' and \
                 self._monitor.wandb_online_track and \

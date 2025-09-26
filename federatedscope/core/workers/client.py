@@ -626,7 +626,7 @@ class Client(BaseClient):
                 self.best_model_path = add_prefix_to_path(f'client_{self.ID}_BEST_MODEL_', self._cfg.federate.adapt_save_to)
                 self.trainer.save_model(self.best_model_path, self.state)
                 self.round_in_which_best_client_model_is_saved = self.state
-                logger.info(f"[Client {self.ID}] Updated best model with new val_avg_loss: {self.best_results[client_key]['val_avg_loss']}")
+                # logger.info(f"[Client {self.ID}] Updated best model with new val_avg_loss: {self.best_results[client_key]['val_avg_loss']}")
             else:
                 logger.info(f"[Client {self.ID}] No val_avg_loss improvement in this round.")
             
@@ -638,7 +638,7 @@ class Client(BaseClient):
             # History_results format from client X: {'test_loss': [44.047755, 43.070358, ...], 'test_total': [33, 33, ...], 'test_avg_loss': [1.33478, 1.305162, ...], 'val_loss': [48.858271, 49.094452, ...], 'val_total': [33, 33, ...], 'val_avg_loss': [1.480554, 1.487711, ...]}
             self.history_results = merge_dict_of_results(self.history_results, formatted_eval_res['Results_raw'])
             # This is the loss obtained by testing the latest aggregated model (downloaded from the server) on the client's local validation data.
-            # The current validation loss may be worse than the best seen so far if the client is still within its patience window
+            # The current validation loss should be worse than the best loss seen so far if the client is still within its patience window
             logger.info(f"[Client {self.ID}] History of CURRENT validation: {self.history_results['val_avg_loss']}")
 
             # If using Local Dynamic Early Stopping (LDES)
@@ -664,11 +664,11 @@ class Client(BaseClient):
                     logger.info(f"[Client {self.ID}] Continuing in local early stopping mode.")
 
                 # If the client is in local early stopping mode, it means that the patiente has been reached and 
-                # the client will not train in the following traininig round. Instead, it will send the best model seen so far to the server.
+                # the client will not train in the following traininig rounds. Instead, it will send the best model seen so far to the server.
                 if self.local_early_stop:
                     # We save the current val_avg_loss as the "val_avg_loss_curr" to keep track of the current round's performance
                     metrics['val_avg_loss_curr'] = metrics['val_avg_loss']
-                    # We override the current "val_avg_loss" field with the best valid loss seen so far. In LDES, "val_avg_loss keeps" track of the best valid loss seen so far (except in the window of patience)
+                    # We override the current "val_avg_loss" value with the best valid loss seen so far. In LDES, "val_avg_loss" keeps track of the best valid loss seen so far (except in the window of patience)
                     metrics['val_avg_loss'] = self.best_results[client_key]['val_avg_loss']
 
                     # Load best model to get the best metrics (Valid and Test if needed)
@@ -717,7 +717,7 @@ class Client(BaseClient):
                 # In metrics we will have two equal lists to maintain the format, but we don't really use val_avg_loss_curr for anything when not using LDES
                 metrics['val_avg_loss_curr'] = metrics['val_avg_loss']
 
-        # Both when using LDES and when not using it, we send the same metrics dict format to the server, 
+        # Both when using LDES and when not, we send the same metrics dict format to the server, 
         # but in LDES val_avg_loss is LDES-aware (best-so-far sent if early stop reached) and local_early_stop flag indicates whether the client is in early stop mode
         # In non-LDES, val_avg_loss and val_avg_loss_curr are equal and local_early_stop is always False
         self.comm_manager.send(
