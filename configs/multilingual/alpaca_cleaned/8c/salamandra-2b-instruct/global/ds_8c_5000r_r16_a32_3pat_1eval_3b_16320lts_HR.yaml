@@ -41,6 +41,8 @@ federate:
   shuffle_train_clients: True
   shuffle_val_clients: True
   shuffle_test_clients: True
+  make_global_eval: False
+  make_clients_eval: True
 llm:
   adapter:
     args:
