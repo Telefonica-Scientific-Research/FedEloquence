@@ -1,0 +1,1 @@
+Directory where the .jsonl files for all languages participating in the federation are stored, using the naming convention {lang_tag}.jsonl — e.g., ca.jsonl, es.jsonl, en.jsonl, etc.
