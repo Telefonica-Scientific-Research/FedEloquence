@@ -78,6 +78,8 @@ Run the following command, replacing the config path with your desired experimen
 
     deepspeed federatedscope/main.py --cfg configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg.yaml
 
+Make sure the directory specified by `federate.adapt_save_to`, where the trained adapter will be stored, exists before running the command.
+
 ### Evaluation - Computing BERTScore and ROUGE Metrics
 
 Once you have a trained adapter, evaluate it using the following scripts:
