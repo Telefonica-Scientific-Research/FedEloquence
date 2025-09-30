@@ -78,6 +78,32 @@ Run the following command, replacing the config path with your desired experimen
 
     deepspeed federatedscope/main.py --cfg configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg.yaml
 
+### Computing BERTScore and ROUGE Metrics
+
+Once you have a trained adapter, evaluate it using the following scripts:
+
+**Available Evaluation Scripts:**
+- `eval_server_testset_rouge_and_bertscore_metrics.py` - Server test set
+- `eval_server_valset_rouge_and_bertscore_metrics.py` - Server validation set
+- `eval_clients_testset_rouge_and_bertscore_metrics.py` - Clients test set
+- `eval_clients_valset_rouge_and_bertscore_metrics.py` - Clients validation set
+
+**Prerequisites:**
+
+The trained adapter must be stored in the path specified by `federate.adapt_save_to` in your config file.
+
+**Usage:**
+
+Use `--model_to_eval` to specify which model to evaluate:
+- `final` - Evaluate the final aggregated model
+- `client_X` - Evaluate a specific client model (e.g., `client_1`, `client_2`)
+
+**Example:**
+
+    python federatedscope/llm/eval/eval_for_alpaca_cleaned/eval_server_testset_rouge_and_bertscore_metrics.py --cfg configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg.yaml --model_to_eval client_1 > eval_result/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg_rouge_bertscore.txt
+
+Results will be saved to the specified output file. Make sure the output directory exists before running the command.
+
 ---
 
 ## Dataset Creation
