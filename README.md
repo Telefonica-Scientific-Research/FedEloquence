@@ -129,7 +129,7 @@ The dataset partitions are distributed in order as follows:
 - Clients validation
 - Clients test
 
-An example for 4 clients can be seen below:
+An example for 4 languages (clients) can be seen below:
 ![Alt text](data/multilingual_distribution_4_clients.png)
 
 #### Step 5: Save the Dataset
