@@ -49,3 +49,4 @@ eval:
   metrics: ['loss']
   count_flops: False
   len_server_dataset: 1000
+  best_res_update_round_wise_key: val_avg_loss

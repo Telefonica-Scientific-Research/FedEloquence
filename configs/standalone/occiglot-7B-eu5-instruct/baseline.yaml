@@ -48,3 +48,4 @@ eval:
   freq: 10
   metrics: ['loss']
   count_flops: False
+  best_res_update_round_wise_key: val_avg_loss
