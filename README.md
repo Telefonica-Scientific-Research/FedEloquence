@@ -130,7 +130,7 @@ The dataset partitions are distributed in order as follows:
 - Clients test
 
 An example for 4 clients can be seen below:
-![Alt text](FedEloquence/data/4_clients.png)
+![Alt text](data/4_clients.png)
 
 #### Step 5: Save the Dataset
 
