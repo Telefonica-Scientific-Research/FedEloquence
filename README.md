@@ -96,6 +96,8 @@ Use `--model_to_eval` to specify which model to evaluate:
 - `final` - Evaluate the final aggregated model
 - `client_X` - Evaluate a specific client model (e.g., `client_1`, `client_2`)
 
+**Example:**
+
     python federatedscope/llm/eval/eval_for_alpaca_cleaned/eval_server_testset_rouge_and_bertscore_metrics.py --cfg configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg.yaml --model_to_eval client_1 > eval_result/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg_rouge_bertscore.txt
 
 Results will be saved to the specified output file. Make sure the output directory exists before running the command.
