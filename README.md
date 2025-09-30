@@ -100,7 +100,7 @@ Configure the script according to your requirements.
 
 Save the `.jsonl` files for all languages participating in the federation in:
 
-    `create_FL_multilingual_datasets/{dataset}/jsonl`
+    create_FL_multilingual_datasets/{dataset}/jsonl
 
 **Naming Convention:** Use the format `{lang_tag}.jsonl` for each language file.
 
