@@ -1,4 +1,4 @@
-# FedEloquence - ICASSP Branch
+# FedEloquence (ICASSP submission)
 
 ## Overview
 
@@ -6,7 +6,7 @@ This branch contains the experimental code and configurations for our paper: **"
 
 Our contributions extend the FederatedScope repository to support **multilingual federated fine-tuning of Large Language Models (LLMs)**.
 
-> **Note:** For general installation and setup instructions, please refer to the **README_steup**.
+> **Note:** For general installation and setup instructions of the repository, please refer to the **README_setup**.
 
 ---
 
@@ -15,7 +15,7 @@ Our contributions extend the FederatedScope repository to support **multilingual
 ### 🌍 Multilingual Fine-tuning Support
 
 - **Flexible prompt integration** – Easily add new prompts for different languages
-- **Language-aware processing** – Sample-wise processing based on language tags
+- **Language-aware processing** – Sample-wise preprocessing and fine-tuning based on language tags
 - **Comprehensive data pipeline** – Tools for creating multilingual FL partitions including:
   - Server-side validation and test sets
   - Client-side train, validation and test sets
@@ -27,7 +27,7 @@ Our novel early stopping mechanism that allows clients to dynamically pause and 
 
 **Configuration:**
 
-Set `federate.use_LDES` to `true` and `federate.use_global_early_stop` to `false` in your config file.
+Set `federate.use_LDES` to `true` and `federate.use_global_early_stop` to `false` in your config file to enable LDES strategy. To use the default early stop method from the original repository, set these variables in the opposite way (`federate.use_LDES` to `false` and `federate.use_global_early_stop` to `true`). Additionally, make sure to specify the patience parameter using `early_stop.patience`.
 
 ### 📊 FedValLoss Aggregation Method
 
@@ -51,11 +51,11 @@ Set `federate.method` to `FedValLoss` in your configuration.
 
 Ensure you have:
 - Activated your virtual environment
-- Configured the `ds_config` file with appropriate training parameters for your hardware
+- Configured the `ds_config` file with appropriate training parameters for your hardware (gradient_accumulation_steps, train_micro_batch_size_per_gpu and train_batch_size)
 
 ### Configuration Files
 
-All experimental configurations are located in `configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/`:
+All experimental configurations used in the paper are located in `configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/`:
 
 #### Early Stop Experiments
 - `early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg.yaml`
@@ -84,25 +84,59 @@ Run the following command, replacing the config path with your desired experimen
 
 ### Multilingual FL Dataset Pipeline
 
-To create the multilingual dataset for federated learning:
+To create the multilingual dataset for Federated Learning:
 
-1. **Navigate to the dataset creation script:**
-   
-   `create_FL_multilingual_datasets/create_dataset_alpaca_cleaned_8c`
+#### Step 1: Navigate to the Dataset Creation Script
 
-2. **Configure the script** according to your requirements
+Locate the script at:
 
-3. **Save the `.jsonl` files** for all languages participating in the federation in:
+    create_FL_multilingual_datasets/create_dataset_alpaca_cleaned_8c
 
-   `create_FL_multilingual_datasets/{dataset}/jsonl`
+#### Step 2: Configure the Script
 
-   Use the naming convention `{lang_tag}.jsonl` — e.g., `ca.jsonl`, `es.jsonl`, `en.jsonl`, etc.
+Configure the script according to your requirements.
 
-4. **Run the script** to generate a `.jsonl` file containing the multilingual data
+#### Step 3: Prepare Monolingual Data
 
-5. **Automatic partitioning:** FedEloquence will automatically pick the data from the partition done in this step:
-   - Server validation and test sets
-   - Client training, validation, and test sets
+Save the `.jsonl` files for all languages participating in the federation in:
+
+    `create_FL_multilingual_datasets/{dataset}/jsonl`
+
+**Naming Convention:** Use the format `{lang_tag}.jsonl` for each language file.
+
+**Examples:**
+- `ca.jsonl` (Catalan)
+- `es.jsonl` (Spanish)
+- `en.jsonl` (English)
+- `de.jsonl` (German)
+
+**Data Sources:**
+
+We used monolingual Alpaca-oriented datasets to create the multilingual dataset for the FL experiments and for the local training experiments. You can find both the multilingual FL-oriented dataset and the monolingual datasets used in these experiments at the following link: 
+
+#### Step 4: Generate the FL Dataset
+
+Run the script to generate a FL dataset.
+
+A `.jsonl` file containing the FL partitions in a unified multilingual dataset will be generated with:
+- Server validation and test sets
+- Client training, validation and test sets
+
+The dataset partitions are distributed in order as follows:
+- Server validation
+- Server test
+- Clients training sets
+- Clients validation
+- Clients test
+
+An example for 4 clients can be seen below:
+![Alt text](FedEloquence/data/4_clients.png)
+
+#### Step 5: Save the Dataset
+
+Save the resulting `.jsonl` multilingual dataset in the `data/` directory.
+
+When running the training script, FedEloquence will automatically serve the server and the clients with their corresponding partitions.
 
 ---
 
@@ -130,7 +164,7 @@ Visualize client participation and interaction patterns during LDES-FL training 
    
    Name each log file according to the aggregation method used (e.g., `fedavg.log`, `fedprox.log`)
 
-2. **Configure parameters** in the script (if needed):
+2. **Configure parameters** in the script:
 
   `analysis/plot_diagrams.sh`
 
@@ -159,132 +193,3 @@ The configuration filenames follow this pattern:
 - `1pat` = patience 1
 - `160lts` = 160 local training steps
 - `fedavg` = FedAvg aggregation method
-
----
-
-## Support
-
-For issues related to:
-- **Installation/Setup:** See the main branch documentation
-- **Experiments:** Open an issue in this repository
-- **FederatedScope:** Refer to the [FederatedScope repository](https://github.com/alibaba/FederatedScope)
-
----
-
-## Citation
-
-If you use this code in your research, please cite our paper:
-
-    @inproceedings{feedeloquence2025,
-      title={Client-Driven Convergence in Federated Learning of Multilingual Large Language Models},
-      author={Your Name et al.},
-      booktitle={ICASSP 2025},
-      year={2025}
-    }
-
----
-
-## License
-
-[Specify your license here]
-
-
-
-## Installation, Setup, and Running of **FedEloquence** for LLM Fine-tuning
-
-Please refer to the **main branch** of the repository for installation and setup instructions of the framework.
-
----
-
-## Content of this Branch (`icassp`)
-
-This branch contains the scripts and steps used in the experiments of our paper *CLIENT-DRIVEN CONVERGENCE IN FEDERATED LEARNING OF MULTILINGUAL LARGE LANGUAGE MODELS*.  
-
-Our contributions extend the FederatedScope repository to support **multilingual federated fine-tuning of LLMs**.  
-
-Specifically, this branch provides:  
-
-- **Multilingual fine-tuning support**  
-  - Flexible integration of new prompts.  
-  - Sample-wise processing based on language tags.  
-  - Data preprocessing pipelines for creating multilingual FL partitions (validation and test sets for server and train, validation and test sets for clients).  
-  - Evaluation scripts computing **BERTScore** and **ROUGE**.  
-
-- **Local Dynamic Early Stop for Federated Learning (LDES-FL)**  
-  - To enable LDES-FL, set federate.use_local_early_stop to `True` in the config file (and federate.use_global_early_stop to False to disable).  
-
-- **FedValLoss aggregation method**  
-  - To activate this method, set `federate.method = FedValLoss` in the configuration.  
-
-- **Additional improvements**  
-  - Option to evaluate against the server and/or clients’ test/val sets.  
-
-- **Configuration files** (`.yaml`) used in our experiments:
-    - configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg.yaml
-    - configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedprox.yaml
-    - configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedvalloss.yaml
-    - configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/global/ds_8c_5000r_r16_a32_3pat_1eval_3b_16320lts_CA.yaml
-    - configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/global/ds_8c_5000r_r16_a32_3pat_1eval_3b_16320lts_DA.yaml
-    - configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/global/ds_8c_5000r_r16_a32_3pat_1eval_3b_16320lts_DE.yaml
-    - configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/global/ds_8c_5000r_r16_a32_3pat_1eval_3b_16320lts_EN.yaml
-    - configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/global/ds_8c_5000r_r16_a32_3pat_1eval_3b_16320lts_ES.yaml
-    - configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/global/ds_8c_5000r_r16_a32_3pat_1eval_3b_16320lts_EU.yaml
-    - configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/global/ds_8c_5000r_r16_a32_3pat_1eval_3b_16320lts_HR.yaml
-    - configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/global/ds_8c_5000r_r16_a32_3pat_1eval_3b_16320lts_SR.yaml
-    
-    Once in the virtual environment, to run these scripts do: 
-    deepspeed federatedscope/main.py --cfg configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg.yaml
-    It is important to set the ds_config file to the correct training parameters of your machines.
-
-## Creation pipeline of Multilingual FL Dataset
-
-To create the multilingual dataset for the Federated Learning (FL) framework, configure the script located at `create_FL_multilingual_datasets/create_dataset_alpaca_cleane_8c` and run it. This will generate a `.jsonl` file containing the multilingual data.
-
-FedEloquence will then automatically select the appropriate subsets from this file for:
-
-- **Server-side validation and testing**
-- **Client-side training, validation, and testing**
-
-## Client Training Diagram & Influence Matrix Plotter
-
-In this section we present the utilities to **visualize client participation and interactions** during training with **Local Dynamic Early Stop in Federated Learning (LDES-FL)**.
-
-We can generate **two key visualizations**:
-
-1. **Client Evolution Diagram**  
-   A timeline showing each client's activity across training rounds, including when they perform **local early stop** and **resume training**.
-
-2. **Client-to-Client Influence Matrix**  
-   A heatmap illustrating how often each client contributes to another client's resumption of training after local early stopping.
-   
----
-
-## 🔧 How It Works
-
-### 1. Prepare Experiment Logs
-
-Place your experiment logs in the following directory structure: "analysis/exp_logs/{model}/{dataset}_{n_clients}c/".
-Name each log file according to the **aggregation method** used.
-
-### 2. Configure Parameters & Run the Script
-
-Launch the visualization process using the provided bash script:
-
-```bash
-sh analysis/plot_diagrams.sh
-```
-### 3. View the Generated Plots
-The output plots will be saved in: "analysis/plots/{model}/{dataset}_{n_clients}c/"
-
-
-
-
-
-
-
-## Data
-You can find the FL multilingual dataset used in this experiments (validation and test server and train, validation and test clients) in:
-
-tmb guardar els monoliongual datasets
-
-falta tema crear FL multilingual partitions per l'experiment
