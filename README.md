@@ -112,7 +112,7 @@ Save the `.jsonl` files for all languages participating in the federation in:
 
 **Data Sources:**
 
-We used monolingual Alpaca-oriented datasets to create the multilingual dataset for the FL experiments and for the local training experiments. You can find both the multilingual FL-oriented dataset and the monolingual datasets used in these experiments at the following link: 
+We used monolingual Alpaca datasets to create the multilingual dataset for the FL experiments and for the local training experiments. You can find both the multilingual FL-oriented dataset and the monolingual datasets used in these experiments at the following Hugging Face paths: aleixsant/alpaca_cleaned_8c and aleixsant/alpaca_cleaned_{lang_tag}
 
 #### Step 4: Generate the FL Dataset
 
@@ -123,11 +123,11 @@ A `.jsonl` file containing the FL partitions in a unified multilingual dataset w
 - Client training, validation and test sets
 
 The dataset partitions are distributed in order as follows:
-- Server validation
-- Server test
+- Server validation set
+- Server test set
 - Clients training sets
-- Clients validation
-- Clients test
+- Clients validation sets
+- Clients test sets
 
 An example for 4 languages (clients) can be seen below:
 ![Alt text](data/multilingual_distribution_4_clients.png)
