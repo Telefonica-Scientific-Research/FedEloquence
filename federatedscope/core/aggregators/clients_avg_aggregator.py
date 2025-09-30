@@ -63,13 +63,13 @@ class ClientsAvgAggregator(Aggregator):
         """
         training_set_size = 0
         for i in range(len(models)):
-            sample_size, _ = models[i]
+            sample_size, _, _ = models[i]
             training_set_size += sample_size
 
-        sample_size, avg_model = models[0]
+        sample_size, avg_model, _ = models[0]
         for key in avg_model:
             for i in range(len(models)):
-                local_sample_size, local_model = models[i]
+                local_sample_size, local_model, _ = models[i]
 
                 if self.cfg.federate.ignore_weight:
                     weight = 1.0 / len(models)
