@@ -37,7 +37,8 @@ dependencies = [
     'sentencepiece==0.1.99',
     'rouge-score==0.1.2',
     'sentence_transformers',
-    'seaborn==0.13.2'
+    'seaborn==0.13.2',
+    'bert-score==0.3.13'
 ]
 
 [build-system]
