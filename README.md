@@ -115,7 +115,9 @@ Use `--model_to_eval` to specify which model to evaluate:
 
     python federatedscope/llm/eval/eval_for_alpaca_cleaned/eval_server_testset_rouge_and_bertscore_metrics.py --cfg configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg.yaml --model_to_eval final > eval_result/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg_server_testset.txt
 
-Results will be saved to the specified output file. Make sure the output directory exists before running the command.
+Results will be saved to the specified output file. Make sure the output directory exists before running the command. You can create the directory for the previous example using the following command:
+
+    mkdir -p eval_result/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/
 
 ---
 
