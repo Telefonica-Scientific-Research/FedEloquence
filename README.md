@@ -52,6 +52,12 @@ Set `federate.method` to `FedValLoss` in your configuration.
 Ensure you have:
 - Activated your virtual environment
 - Configured the `ds_config` file with appropriate training parameters for your hardware (gradient_accumulation_steps, train_micro_batch_size_per_gpu and train_batch_size)
+- Download datasets for the experiments and save them in /data directory:
+    Run the following commands to download the multilingual dataset in /FedEloquence
+    Multilingual FL dataset:
+        huggingface-cli download --repo-type dataset --resume-download aleixsant/alpaca_cleaned_8c --local-dir data
+    Monolingual datasets:
+        huggingface-cli download --repo-type dataset --resume-download aleixsant/alpaca_cleaned_{lang_tag} --local-dir data
 
 ### Configuration Files
 
@@ -196,8 +202,10 @@ Visualize client participation and interaction patterns during LDES-FL training 
    
    Output will be saved in: `analysis/plots/{model}/{dataset}_{n_clients}c/`
 
-See below the Client Evolution Diagrams for FedAvg and FedValLoss experiments respctively:
+See below the Client Evolution Diagrams for the FedAvg and FedValLoss experiments, respectively:
+
 ![Alt text](analysis/plots/salamandra-2b-instruct/alpaca_cleaned_8c/clients_evolution_diagram_FedAvg_8c_pat1.png)
+
 ![Alt text](analysis/plots/salamandra-2b-instruct/alpaca_cleaned_8c/clients_evolution_diagram_FedValLoss_8c_pat1.png)
 
 ---
