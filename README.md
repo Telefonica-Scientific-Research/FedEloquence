@@ -6,7 +6,7 @@ This branch contains the experimental code and configurations for our paper: **"
 
 Our contributions extend the FederatedScope repository to support **multilingual federated fine-tuning of Large Language Models (LLMs)**.
 
-> **Note:** For general installation and setup instructions of the repository, please refer to the **README_setup**.
+> **Note:** For general installation and setup instructions of the repository, please refer to the [README_setup](https://github.com/Telefonica-Scientific-Research/FedEloquence/blob/main/README_setup.md).
 
 ---
 
@@ -50,7 +50,7 @@ Set `federate.method` to `FedValLoss` in your configuration.
 ### Prerequisites
 
 Ensure you have:
-- Activated your virtual environment
+- Activated your virtual environment and verified that the repo is functioning correctly. For setup instructions, refer to the [README_setup](https://github.com/Telefonica-Scientific-Research/FedEloquence/blob/main/README_setup.md)
 - Configured the `ds_config` file with appropriate training parameters for your hardware (gradient_accumulation_steps, train_micro_batch_size_per_gpu and train_batch_size)
 - Downloaded the needed datasets for the experiments and saved them in /data directory:
 
