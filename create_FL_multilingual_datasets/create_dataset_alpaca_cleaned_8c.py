@@ -30,7 +30,8 @@ total_length = length_json * n_clients
 length_val_server = n_clients * 501 # Length of validation set in the server, counting all languages
 length_test_server = n_clients * 501 # Length of validation set in the server, counting all languages
 
-# Proportions of train, validation and test sets of each client
+# These values should be the same as the ones in the config file
+# They refer to the proportions of the training, validation and test sets of each client
 split_train = 0.96 
 split_test = 0.02
 split_val= 0.02
@@ -38,7 +39,6 @@ split_val= 0.02
 # Total size of the training, validation and test sets of all clients together
 length_clients = total_length - length_val_server - length_test_server
 print("Size clients: ", length_clients)
-
 
 n_samp_x_lang_in_val_server = length_val_server / n_clients
 print("Samples per language in valid of server: ", n_samp_x_lang_in_val_server)

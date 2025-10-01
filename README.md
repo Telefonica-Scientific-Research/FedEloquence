@@ -116,7 +116,7 @@ To create the multilingual dataset for Federated Learning:
 
 Locate the script at:
 
-    create_FL_multilingual_datasets/create_dataset_alpaca_cleaned_8c
+    create_FL_multilingual_datasets/create_dataset_alpaca_cleaned_8c.py
 
 #### Step 2: Configure the Script
 
@@ -142,7 +142,7 @@ We used monolingual Alpaca datasets to create the multilingual dataset for the F
 
 #### Step 4: Generate the FL Dataset
 
-Run the script to generate a FL dataset.
+Run the script inside /create_FL_multilingual_datasets to generate a FL dataset.
 
 A `.jsonl` file containing the FL partitions in a unified multilingual dataset will be generated with:
 - Server validation and test sets
@@ -157,10 +157,6 @@ The dataset partitions are distributed in order as follows:
 
 An example for 4 languages (clients) can be seen below:
 ![Alt text](data/multilingual_distribution_4_clients.png)
-
-#### Step 5: Save the Dataset
-
-Save the resulting `.jsonl` multilingual dataset in the `data/` directory.
 
 When running the training script, FedEloquence will automatically serve the server and the clients with their corresponding partitions.
 
