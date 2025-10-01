@@ -38,7 +38,8 @@ dependencies = [
     'rouge-score==0.1.2',
     'sentence_transformers',
     'seaborn==0.13.2',
-    'bert-score==0.3.13'
+    'bert-score==0.3.13',
+    'hf-cli==0.1'
 ]
 
 [build-system]
