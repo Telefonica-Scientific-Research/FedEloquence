@@ -78,7 +78,7 @@ Run the following command, replacing the config path with your desired experimen
 
     deepspeed federatedscope/main.py --cfg configs/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/early_stop/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg.yaml
 
-Make sure the directory specified by `federate.adapt_save_to`, where the trained adapter will be stored, exists before running the command.
+Make sure the directory specified by `federate.adapt_save_to`, where the trained adapter will be stored, exists before running the command. Additionally, both the multilingual FL dataset and the monolingual datasets should be stored in the /data directory. A later section explains how to create the multilingual FL dataset and where to obtain the required data.
 
 ### Evaluation - Computing BERTScore and ROUGE Metrics
 
@@ -138,7 +138,7 @@ Save the `.jsonl` files for all languages participating in the federation in:
 
 **Data Sources:**
 
-We used monolingual Alpaca datasets to create the multilingual dataset for the FL experiments and for the local training experiments. You can find both the multilingual FL-oriented dataset and the monolingual datasets used in these experiments at the following Hugging Face paths: aleixsant/alpaca_cleaned_8c and aleixsant/alpaca_cleaned_{lang_tag}
+We used monolingual Alpaca datasets to create the multilingual dataset for the FL experiments and for the local training experiments. You can find both the multilingual FL-oriented dataset and the monolingual datasets used in these experiments at the following Hugging Face paths: aleixsant/alpaca_cleaned_8c and aleixsant/alpaca_cleaned_{lang_tag}. These datasets should be stored in /data.
 
 #### Step 4: Generate the FL Dataset
 
