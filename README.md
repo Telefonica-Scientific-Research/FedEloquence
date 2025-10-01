@@ -52,7 +52,7 @@ Set `federate.method` to `FedValLoss` in your configuration.
 Ensure you have:
 - Activated your virtual environment
 - Configured the `ds_config` file with appropriate training parameters for your hardware (gradient_accumulation_steps, train_micro_batch_size_per_gpu and train_batch_size)
-- Downloaded datasets for the experiments and saved them in /data directory.
+- Downloaded the needed datasets for the experiments and saved them in /data directory:
 
     You can run the following commands in /FedEloquence to download the multilingual FL dataset and the monolingual datasets.
 
@@ -151,7 +151,7 @@ Save the `.jsonl` files for all languages participating in the federation in:
 
 **Data Sources:**
 
-We used monolingual Alpaca datasets to create the multilingual dataset for the FL experiments and for the local training experiments. You can find both the multilingual FL-oriented dataset and the monolingual datasets used in these experiments at the following Hugging Face paths: aleixsant/alpaca_cleaned_8c and aleixsant/alpaca_cleaned_{lang_tag}. These datasets should be stored in /data. You can use the commands listed in the prerequisites section to download the datasets.
+We used monolingual Alpaca datasets to create the multilingual dataset for the FL experiments and for the local training experiments. You can find both the multilingual FL-oriented dataset and the monolingual datasets used in these experiments at the following Hugging Face paths: aleixsant/alpaca_cleaned_8c and aleixsant/alpaca_cleaned_{lang_tag}. These datasets should be stored in /data. You can use the commands provided in the prerequisites section to download the datasets.
 
 #### Step 4: Generate the FL Dataset
 
