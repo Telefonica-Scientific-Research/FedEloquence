@@ -196,6 +196,10 @@ Visualize client participation and interaction patterns during LDES-FL training 
    
    Output will be saved in: `analysis/plots/{model}/{dataset}_{n_clients}c/`
 
+See below the Client Evolution Diagrams for FedAvg and FedValLoss experiments respctively:
+![Alt text](analysis/plots/salamandra-2b-instruct/alpaca_cleaned_8c/clients_evolution_diagram_FedAvg_8c_pat1.png)
+![Alt text](analysis/plots/salamandra-2b-instruct/alpaca_cleaned_8c/clients_evolution_diagram_FedValLoss_8c_pat1.png)
+
 ---
 
 ## Configuration Naming Convention
