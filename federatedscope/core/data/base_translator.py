@@ -8,7 +8,8 @@ from federatedscope.core.auxiliaries.splitter_builder import get_splitter
 from federatedscope.core.data import ClientData, StandaloneDataDict
 from torch.utils.data import Dataset, Subset
 
-from federatedscope.llm.dataloader.dataloader import get_tokenizer
+# Uncomment this during training to verify that the subsets are correctly taken from the multilingual FL dataset
+# from federatedscope.llm.dataloader.dataloader import get_tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,8 @@ class BaseDataTranslator:
             path_to_subsets = "generated_FL_subsets"
             os.makedirs(path_to_subsets, exist_ok=True)
 
-            tokenizer, _ = get_tokenizer(model_path, "data/" , 1000, "huggingface_llm")
+            # Uncomment this during training to verify that the subsets are correctly taken from the multilingual FL dataset
+            # tokenizer, _ = get_tokenizer(model_path, "data/" , 1000, "huggingface_llm")
             
             val_server_dataset = Subset(dataset, index[:len_server_dataset])
             logger.info(f"Length of the server val set: {len(val_server_dataset)}")
@@ -122,7 +124,8 @@ class BaseDataTranslator:
             
             train_dataset = Subset(dataset, 
                                     index[2*len_server_dataset : 2*len_server_dataset + train_size])
-                        
+
+            """ Uncomment this during training to verify that the subsets are correctly taken from the multilingual FL dataset            
             output_path = f"{path_to_subsets}/server_VAL.jsonl"
             with open(output_path, 'w', encoding='utf-8') as f:
                 for sample in val_server_dataset:
@@ -133,6 +136,7 @@ class BaseDataTranslator:
                 for sample in test_server_dataset:
                     json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
                     f.write(json_line + '\n')
+            """
 
             """
             if self.global_cfg.federate.monolingual_exp.enable == False:
@@ -153,6 +157,7 @@ class BaseDataTranslator:
                                 index[2*len_server_dataset + train_size + val_size : 2*len_server_dataset + train_size + 2*val_size])
             logger.info(f"Length test set (before splitting it into clients): {len(test_dataset)}")
 
+            """ Uncomment this during training to verify that the subsets are correctly taken from the multilingual FL dataset
             output_path = f"{path_to_subsets}/clients_TRAIN.jsonl"
             with open(output_path, 'w', encoding='utf-8') as f:
                 for sample in train_dataset:
@@ -170,7 +175,7 @@ class BaseDataTranslator:
                 for sample in test_dataset:
                     json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
                     f.write(json_line + '\n')
-
+            """
         else:
             val_server_dataset = [dataset[x] for x in index[:len_server_dataset]]
 
