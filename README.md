@@ -53,11 +53,18 @@ Ensure you have:
 - Activated your virtual environment
 - Configured the `ds_config` file with appropriate training parameters for your hardware (gradient_accumulation_steps, train_micro_batch_size_per_gpu and train_batch_size)
 - Download datasets for the experiments and save them in /data directory:
+
     Run the following commands to download the multilingual dataset in /FedEloquence
+
     Multilingual FL dataset:
+
         huggingface-cli download --repo-type dataset --resume-download aleixsant/alpaca_cleaned_8c --local-dir data
+
     Monolingual datasets:
+
         huggingface-cli download --repo-type dataset --resume-download aleixsant/alpaca_cleaned_{lang_tag} --local-dir data
+    
+>   **Note:** Replace {lang_tag} with the appropriate language code for the dataset you want to download.
 
 ### Configuration Files
 
