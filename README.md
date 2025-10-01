@@ -186,9 +186,7 @@ Visualize client participation and interaction patterns during LDES-FL training 
    
    Name each log file according to the aggregation method used (e.g., `fedavg.log`, `fedprox.log`)
 
-2. **Configure parameters** in the script:
-
-  `analysis/plot_diagrams.sh`
+2. **Configure parameters** in the script: `analysis/plot_diagrams.sh`
 
 3. **Generate visualizations:**
    
