@@ -54,15 +54,15 @@ Ensure you have:
 - Configured the `ds_config` file with appropriate training parameters for your hardware (gradient_accumulation_steps, train_micro_batch_size_per_gpu and train_batch_size)
 - Downloaded datasets for the experiments and saved them in /data directory.
 
-        You can run the following commands in /FedEloquence to download the multilingual FL dataset and the monolingual datasets.
+    You can run the following commands in /FedEloquence to download the multilingual FL dataset and the monolingual datasets.
 
-        Multilingual FL dataset
+    Multilingual FL dataset
 
-            huggingface-cli download --repo-type dataset --resume-download aleixsant/alpaca_cleaned_8c --local-dir data
+        huggingface-cli download --repo-type dataset --resume-download aleixsant/alpaca_cleaned_8c --local-dir data
 
-        Monolingual datasets
+    Monolingual datasets
 
-            huggingface-cli download --repo-type dataset --resume-download aleixsant/alpaca_cleaned_{lang_tag} --local-dir data
+        huggingface-cli download --repo-type dataset --resume-download aleixsant/alpaca_cleaned_{lang_tag} --local-dir data
         
     >   **Note:** Replace {lang_tag} with the appropriate language code for the dataset you want to download.
 
@@ -151,7 +151,7 @@ Save the `.jsonl` files for all languages participating in the federation in:
 
 **Data Sources:**
 
-We used monolingual Alpaca datasets to create the multilingual dataset for the FL experiments and for the local training experiments. You can find both the multilingual FL-oriented dataset and the monolingual datasets used in these experiments at the following Hugging Face paths: aleixsant/alpaca_cleaned_8c and aleixsant/alpaca_cleaned_{lang_tag}. These datasets should be stored in /data.
+We used monolingual Alpaca datasets to create the multilingual dataset for the FL experiments and for the local training experiments. You can find both the multilingual FL-oriented dataset and the monolingual datasets used in these experiments at the following Hugging Face paths: aleixsant/alpaca_cleaned_8c and aleixsant/alpaca_cleaned_{lang_tag}. These datasets should be stored in /data. You can use the commands listed in the prerequisites section to download the datasets.
 
 #### Step 4: Generate the FL Dataset
 
