@@ -192,7 +192,7 @@ Visualize client participation and interaction patterns during LDES-FL training 
 
 3. **Generate visualizations:**
    
-   Run: `sh analysis/plot_diagrams.sh`
+   Run inside /analysis: `sh analysis/plot_diagrams.sh`
 
 4. **View results:**
    
