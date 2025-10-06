@@ -16,7 +16,7 @@ langs = [
 ]
 
 # Define the path to the directory containing the JSONL files
-jsonl_dir = "create_FL_multilingual_datasets/alpaca_cleaned/jsonls"
+jsonl_dir = "/create_FL_multilingual_datasets/alpaca_cleaned/jsonls"
 
 n_clients = len(langs)  # Number of independent clients, one for each language
 
@@ -60,7 +60,7 @@ def extract_and_concatenate_jsonl(files, sections):
     # Read all lines from each file and store in separate variables
     file_lines = []
     for file in files:
-        with open(f"FedEloquence/create_FL_multilingual_datasets/alpaca_cleaned/jsonls/{file}", 'r') as f:
+        with open(f"./create_FL_multilingual_datasets/alpaca_cleaned/jsonls/{file}", 'r') as f:
             file_lines.append(f.readlines())
     
     # Extract and concatenate lines for each section
@@ -93,6 +93,6 @@ new_data = extract_and_concatenate_jsonl(files, sections)
 print("Number of samples per language in each partition of the dataset: ", sections)
 
 # Save the new JSONL data to a new file
-with open('FedEloquence/data/alpaca_cleaned_8c.jsonl', 'w') as output_file:
+with open('./data/alpaca_cleaned_8c.jsonl', 'w') as output_file:
     for entry in new_data:
         output_file.write(json.dumps(entry) + '\n')

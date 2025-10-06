@@ -157,7 +157,7 @@ We used monolingual Alpaca datasets to create the multilingual dataset for the F
 
 #### Step 4: Generate the FL Dataset
 
-Run the script inside /create_FL_multilingual_datasets to generate a FL dataset.
+Run the script inside /FedEloquence to generate a FL dataset.
 
 A `.jsonl` file containing the FL partitions in a unified multilingual dataset will be generated with:
 - Server validation and test sets
