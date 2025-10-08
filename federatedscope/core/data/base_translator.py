@@ -210,10 +210,11 @@ class BaseDataTranslator:
         shuffle_clients_train = self.global_cfg.federate.shuffle_train_clients
         shuffle_clients_val = self.global_cfg.federate.shuffle_val_clients
         shuffle_clients_test = self.global_cfg.federate.shuffle_test_clients
+        shuffle_per_client = self.global_cfg.federate.shuffle_per_client
 
         # Split train/val/test to n clients
         if len(train) > 0:
-            split_train = self.splitter(train, shuffle_clients_train)
+            split_train = self.splitter(train, shuffle_clients_train, shuffle_per_client)
             logger.info(f"Number of splits of train set (number of train subsets): {len(split_train)}")
 
             if self.global_cfg.data.consistent_label_distribution:
@@ -226,11 +227,11 @@ class BaseDataTranslator:
                         'splitter, split dataset without considering train '
                         'label.')
         if len(val) > 0:
-            split_val = self.splitter(val, shuffle_clients_val, prior=train_label_distribution)
+            split_val = self.splitter(val, shuffle_clients_val, shuffle_per_client, prior=train_label_distribution)
             logger.info(f"Number of splits of val set (number of val subsets): {len(split_val)}")
             
         if len(test) > 0:
-            split_test = self.splitter(test, shuffle_clients_test, prior=train_label_distribution)
+            split_test = self.splitter(test, shuffle_clients_test, shuffle_per_client, prior=train_label_distribution)
             logger.info(f"Number of splits of test set (number of test subsets): {len(split_test)}")
         
         data_dict = {

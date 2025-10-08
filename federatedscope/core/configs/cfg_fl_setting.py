@@ -62,6 +62,7 @@ def extend_fl_setting_cfg(cfg):
     cfg.federate.shuffle_train_clients = False # shuffle train data before splitting into clients' subsets
     cfg.federate.shuffle_val_clients = False #shuffle train data before splitting into clients' subsets
     cfg.federate.shuffle_test_clients = False #shuffle train data before splitting into clients' subsets
+    cfg.federate.shuffle_per_client = False #shuffle data of each client after splitting
     
     cfg.federate.use_global_early_stop = False
     cfg.federate.use_LDES = False
