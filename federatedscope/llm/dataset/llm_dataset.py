@@ -9,12 +9,13 @@ import pandas as pd
 
 from enum import Enum
 from torch.utils.data import Dataset
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 
 class DefaultToken(Enum):
-    PAD_TOKEN = "[PAD]"
+    PAD_TOKEN = "<pad>"
     EOS_TOKEN = "</s>"
     BOS_TOKEN = "<s>"
     UNK_TOKEN = "<unk>"
@@ -33,7 +34,6 @@ PROMPT_DICT = {
         "Write a response that appropriately completes the request.\n\n"
         "### Instruction:\n{instruction}\n\n### Response:"),
 }
-
 
 class LLMDataset(Dataset):
     """
@@ -82,6 +82,12 @@ class LLMDataset(Dataset):
         """
         super(LLMDataset, self).__init__()
 
+        # ------------------- Ensure proper pad_token -------------------
+        if tokenizer.pad_token is None or tokenizer.pad_token == tokenizer.unk_token:
+            tokenizer.add_special_tokens({"pad_token": DefaultToken.PAD_TOKEN.value})
+
+        self.tokenizer = tokenizer
+
         sources, targets = [], []
 
         if domain_type == "single":
@@ -96,16 +102,16 @@ class LLMDataset(Dataset):
                 targets.append(f"{example['output']}{tokenizer.eos_token}")
         else:  # cross
             for example in list_data_dict:
-                domain_prompts = prompt.get(example.get("domain"), {})
+                lang_prompts = prompt.get(example.get("language"), {})
                 formatted_source = (
-                    domain_prompts.get("prompt_input", "").format_map(example) 
+                    lang_prompts.get("prompt_input", "").format_map(example) 
                     if example.get("input") not in ("", None) 
-                    else domain_prompts.get("prompt_no_input", "").format_map(example)
+                    else lang_prompts.get("prompt_no_input", "").format_map(example)
                 )
                 sources.append(formatted_source)
                 targets.append(f"{example['output']}{tokenizer.eos_token}")
 
-        data_dict = self.preprocess(sources, targets, tokenizer)
+        data_dict = self.preprocess(sources, targets)
 
         self.input_ids = data_dict["input_ids"]
         self.labels = data_dict["labels"]
@@ -117,82 +123,138 @@ class LLMDataset(Dataset):
         df = pd.DataFrame(categories, columns=["category"])
         self.categories = list(pd.Categorical(df["category"]).codes)
 
-    def _tokenize_fn(self, strings, tokenizer):
+    def _tokenize_fn(self, list_of_messages):
         """
-        Tokenizes a list of strings using the given tokenizer.
+        Tokenizes a list of chat message sequences using the tokenizer's
+        chat template correctly for instruction tuning.
 
         Args:
-            strings: A list of strings to be tokenized.
-            tokenizer: A transformers.PreTrainedTokenizer object that can
-                encode and decode text.
+            list_of_messages: list of conversations, where each element is:
+                [
+                    {"role": "user", "content": source_text},
+                    {"role": "assistant", "content": target_text},
+                ]
+            tokenizer: HF PreTrainedTokenizer with chat template.
 
         Returns:
-            A dictionary with the following keys and values:
-                - input_ids: A list of torch.LongTensor objects of shape (
-                    max_length,) containing the tokenized input ids.
-                - labels: A list of torch.LongTensor objects of shape (
-                    max_length,) containing the tokenized labels.
-                - input_ids_lens: A list of integers representing the
-                    lengths of the input ids before padding.
-                - labels_lens: A list of integers representing the lengths of
-                    the labels before padding.
+            dict containing:
+                input_ids: list of LongTensor
+                labels:    list of LongTensor
+                input_ids_lens: list[int]
+                labels_lens: list[int]
         """
-        tokenized_list = [
-            tokenizer(
-                text,
-                return_tensors="pt",
-                padding="longest",
-                max_length=tokenizer.model_max_length,
+
+        input_ids_list = []
+        labels_list = []
+        input_lens = []
+        label_lens = []
+
+        tokenizer = self.tokenizer
+
+        pad_id = tokenizer.pad_token_id
+        max_len = tokenizer.model_max_length
+
+        date_str = datetime.today().strftime("%Y-%m-%d")
+
+        for messages in list_of_messages:
+            # Render full conversation using chat template
+            rendered = tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=False,
+                date_string=date_str
+            )
+
+            # Tokenize the full sequence
+            encoded = tokenizer(
+                rendered,
                 truncation=True,
-            ) for text in strings
-        ]
-        input_ids = labels = [
-            tokenized.input_ids[0] for tokenized in tokenized_list
-        ]
-        input_ids_lens = labels_lens = [
-            tokenized.input_ids.ne(tokenizer.pad_token_id).sum().item()
-            for tokenized in tokenized_list
-        ]
-        return dict(
-            input_ids=input_ids,
-            labels=labels,
-            input_ids_lens=input_ids_lens,
-            labels_lens=labels_lens,
-        )
+                max_length=max_len,
+                add_special_tokens=False,
+                return_tensors="pt"
+            )
+            # We don't apply padding here. We will do dynamic padding in the DataCollator
+            #  padding="max_length", if it was like this we would increase the sample to max_lens with zeros (padding)
 
-    def preprocess(self, sources, targets, tokenizer):
+            input_ids = encoded.input_ids[0]
+            labels = input_ids.clone()
+
+            # ---------------- Mask user/system tokens (leaving assistant tokens only) ----------------
+            # Identify all messages BEFORE the assistant
+            prefix_msgs = []
+            for msg in messages:
+                if msg.get("role") == "assistant":
+                    break
+                prefix_msgs.append(msg)
+
+            if prefix_msgs:
+                rendered_prefix = tokenizer.apply_chat_template(
+                    prefix_msgs,
+                    tokenize=False,
+                    add_generation_prompt=False,
+                    date_string=date_str,
+                )
+                prefix_ids = tokenizer(
+                    rendered_prefix,
+                    add_special_tokens=False,
+                    truncation=True,
+                    max_length=max_len,
+                    return_tensors="pt",
+                ).input_ids[0]
+                # Mask the prefix tokens in labels (system + user)
+                labels[: prefix_ids.size(0)] = DefaultToken.IGNORE_INDEX.value
+
+            # ---------------- Mask padding ----------------
+            ## If sequences were padded before (e.g., padding="max_length"), we must ignore
+            # those padding tokens in the loss by setting their label positions to IGNORE_INDEX.
+
+            ## If we use dynamic padding during collation (e.g. LLMDataCollator),
+            # there are no padding tokens in input_ids at this point (padding is applied later),
+            # so the line below will have no effect here (it must run after padding is added).
+            labels[input_ids == pad_id] = DefaultToken.IGNORE_INDEX.value
+
+            input_ids_list.append(input_ids)
+            labels_list.append(labels)
+
+            input_lens.append((input_ids != pad_id).sum().item())
+            label_lens.append((labels != DefaultToken.IGNORE_INDEX.value).sum().item())
+
+        return {
+            "input_ids": input_ids_list,
+            "labels": labels_list,
+            "input_ids_lens": input_lens,
+            "labels_lens": label_lens,
+        }
+
+    def preprocess(self, sources, targets):
         """
-        Preprocesses the sources and targets using the given tokenizer.
-
-        Args:
-            sources: A list of strings representing the source texts.
-            targets: A list of strings representing the target texts.
-            tokenizer: A transformers.PreTrainedTokenizer object that can
-                encode and decode text.
-
-        Returns:
-            A dictionary with the following keys and values:
-                - input_ids: A list of torch.LongTensor objects of shape (
-                    max_length,) containing the padded input ids.
-                - labels: A list of torch.LongTensor objects of shape (
-                    max_length,) containing the padded labels.
+        Build chat messages and tokenize.
         """
-        examples = [s + t for s, t in zip(sources, targets)]
-        examples_tokenized, sources_tokenized = [
-            self._tokenize_fn(strings, tokenizer)
-            for strings in (examples, sources)
-        ]
-        input_ids = examples_tokenized["input_ids"]
-        labels = copy.deepcopy(input_ids)
-        for label, source_len in zip(labels,
-                                     sources_tokenized["input_ids_lens"]):
-            label[:source_len] = DefaultToken.IGNORE_INDEX.value
-        return dict(input_ids=input_ids, labels=labels)
+        messages_list = []
+
+        for src, tgt in zip(sources, targets):
+            messages_list.append(
+                [
+                    {"role": "user", "content": src},
+                    {"role": "assistant", "content": tgt},
+                ]
+            )
+
+        tokenized = self._tokenize_fn(messages_list)
+        
+        # input_ids: what the model reads (input = full conversation)
+        # labels: what the model is trained to predict (labels = only assistant tokens)
+        return {
+            "input_ids": tokenized["input_ids"],
+            "labels": tokenized["labels"],
+        }
 
     def __len__(self):
         return len(self.input_ids)
 
-    def __getitem__(self, i):
-        return dict(input_ids=self.input_ids[i],
-                    labels=self.labels[i],
-                    categories=self.categories[i])
+    def __getitem__(self, idx):
+        return {
+            "input_ids": self.input_ids[idx],
+            "labels": self.labels[idx],
+            "categories": self.categories[idx],
+        }
