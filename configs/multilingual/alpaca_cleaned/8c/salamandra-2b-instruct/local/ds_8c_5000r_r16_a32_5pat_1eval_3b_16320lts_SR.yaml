@@ -32,7 +32,7 @@ federate:
   mode: standalone
   online_aggr: false
   process_num: 1
-  adapt_save_to: finetuned_adapters/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/global/ds_8c_5000r_r16_a32_5pat_1eval_3b_16320lts_SR.ckpt
+  adapt_save_to: finetuned_adapters/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/local/ds_8c_5000r_30ls_r16_a32_5pat_1eval_3b_16320lts_SR.ckpt
   share_local_model: true
   total_round_num: 5000
   use_global_early_stop: True

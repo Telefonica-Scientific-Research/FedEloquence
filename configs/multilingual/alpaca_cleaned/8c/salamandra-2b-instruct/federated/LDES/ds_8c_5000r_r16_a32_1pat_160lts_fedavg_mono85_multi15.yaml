@@ -69,7 +69,7 @@ llm:
     use: true
   tok_len: 1300
   prompt_path: prompt_templates/alpaca_cleaned_8c
-  model_save_to: models_with_ft_adapt/multilingual/alpaca_cleaned_sweep/8c/salamandra-2b-instruct/LDES/fedavg_mono85_multi15
+  adapt_save_to: finetuned_adapters/multilingual/alpaca_cleaned/8c/salamandra-2b-instruct/federated/LDES/ds_8c_5000r_30ls_r16_a32_1pat_160lts_fedavg_mono85_multi15.ckpt
   to_hf_format: 
     use: false
     hash_code_model_snapshot: ""
