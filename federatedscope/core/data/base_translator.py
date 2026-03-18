@@ -8,9 +8,6 @@ from federatedscope.core.auxiliaries.splitter_builder import get_splitter
 from federatedscope.core.data import ClientData, StandaloneDataDict
 from torch.utils.data import Dataset, Subset
 
-# Uncomment this during training to verify that the subsets are correctly taken from the multilingual FL dataset
-# from federatedscope.llm.dataloader.dataloader import get_tokenizer
-
 logger = logging.getLogger(__name__)
 
 class BaseDataTranslator:
@@ -25,6 +22,8 @@ class BaseDataTranslator:
         FL split (``split_to_client()``) -> ``StandaloneDataDict``
 
     """
+    inspect_FL_subsets: bool = True # Set to True to verify the generated subsets during training
+
     def __init__(self, global_cfg, client_cfgs=None):
         """
         Convert data to `StandaloneDataDict`.
@@ -113,9 +112,12 @@ class BaseDataTranslator:
             path_to_subsets = "generated_FL_subsets"
             os.makedirs(path_to_subsets, exist_ok=True)
 
-            # Uncomment this during training to verify that the subsets are correctly taken from the multilingual FL dataset
-            # tokenizer, _ = get_tokenizer(model_path, "data/" , 1000, "huggingface_llm")
-            
+            if self.inspect_FL_subsets:
+                from federatedscope.llm.dataloader.dataloader import get_tokenizer
+                tokenizer, _ = get_tokenizer(model_path, "data/" , 1000, "huggingface_llm")
+                logger.info(f"Tokenizer.pad_token_id = {tokenizer.pad_token_id}")
+                logger.info(f"Tokenizer.pad_token = {tokenizer.pad_token}")
+
             val_server_dataset = Subset(dataset, index[:len_server_dataset])
             logger.info(f"Length of the server val set: {len(val_server_dataset)}")
 
@@ -125,18 +127,19 @@ class BaseDataTranslator:
             train_dataset = Subset(dataset, 
                                     index[2*len_server_dataset : 2*len_server_dataset + train_size])
 
-            """ Uncomment this during training to verify that the subsets are correctly taken from the multilingual FL dataset            
-            output_path = f"{path_to_subsets}/server_VAL.jsonl"
-            with open(output_path, 'w', encoding='utf-8') as f:
-                for sample in val_server_dataset:
-                    json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
-                    f.write(json_line + '\n')
-            output_path = f"{path_to_subsets}/server_TEST.jsonl"
-            with open(output_path, 'w', encoding='utf-8') as f:
-                for sample in test_server_dataset:
-                    json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
-                    f.write(json_line + '\n')
-            """
+            if self.inspect_FL_subsets:            
+                output_path = f"{path_to_subsets}/server_VAL.jsonl"
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    for sample in val_server_dataset:
+                        ids = [x for x in sample["input_ids"] if x != tokenizer.pad_token_id] # Done to avoid including pad tokens in the decoded text
+                        json_line = json.dumps(tokenizer.decode(ids, skip_special_tokens=False), ensure_ascii=False)
+                        f.write(json_line + '\n')
+                output_path = f"{path_to_subsets}/server_TEST.jsonl"
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    for sample in test_server_dataset:
+                        ids = [x for x in sample["input_ids"] if x != tokenizer.pad_token_id] # Done to avoid including pad tokens in the decoded text
+                        json_line = json.dumps(tokenizer.decode(ids, skip_special_tokens=False), ensure_ascii=False)
+                        f.write(json_line + '\n')
 
             """
             if self.global_cfg.federate.monolingual_exp.enable == False:
@@ -151,31 +154,33 @@ class BaseDataTranslator:
 
             val_dataset = Subset(dataset,
                                 index[2*len_server_dataset + train_size : 2*len_server_dataset + train_size + val_size])
-            logger.info(f"Length val set (before splitting it into clients): {val_dataset}")
+            logger.info(f"Length val set (before splitting it into clients): {len(val_dataset)}")
 
             test_dataset = Subset(dataset, 
                                 index[2*len_server_dataset + train_size + val_size : 2*len_server_dataset + train_size + 2*val_size])
             logger.info(f"Length test set (before splitting it into clients): {len(test_dataset)}")
 
-            """ Uncomment this during training to verify that the subsets are correctly taken from the multilingual FL dataset
-            output_path = f"{path_to_subsets}/clients_TRAIN.jsonl"
-            with open(output_path, 'w', encoding='utf-8') as f:
-                for sample in train_dataset:
-                    json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
-                    f.write(json_line + '\n')
-            
-            output_path = f"{path_to_subsets}/clients_VAL.jsonl"
-            with open(output_path, 'w', encoding='utf-8') as f:
-                for sample in val_dataset:
-                    json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
-                    f.write(json_line + '\n')
+            if self.inspect_FL_subsets:
+                output_path = f"{path_to_subsets}/clients_TRAIN.jsonl"
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    for sample in train_dataset:
+                        ids = [x for x in sample["input_ids"] if x != tokenizer.pad_token_id] # Done to avoid including pad tokens in the decoded text
+                        json_line = json.dumps(tokenizer.decode(ids, skip_special_tokens=False), ensure_ascii=False)
+                        f.write(json_line + '\n')
+                
+                output_path = f"{path_to_subsets}/clients_VAL.jsonl"
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    for sample in val_dataset:
+                        ids = [x for x in sample["input_ids"] if x != tokenizer.pad_token_id] # Done to avoid including pad tokens in the decoded text
+                        json_line = json.dumps(tokenizer.decode(ids, skip_special_tokens=False), ensure_ascii=False)
+                        f.write(json_line + '\n')
 
-            output_path = f"{path_to_subsets}/clients_TEST.jsonl"
-            with open(output_path, 'w', encoding='utf-8') as f:
-                for sample in test_dataset:
-                    json_line = json.dumps(tokenizer.decode(sample["input_ids"], skip_special_tokens=True), ensure_ascii=False)
-                    f.write(json_line + '\n')
-            """
+                output_path = f"{path_to_subsets}/clients_TEST.jsonl"
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    for sample in test_dataset:
+                        ids = [x for x in sample["input_ids"] if x != tokenizer.pad_token_id] # Done to avoid including pad tokens in the decoded text
+                        json_line = json.dumps(tokenizer.decode(ids, skip_special_tokens=False), ensure_ascii=False)
+                        f.write(json_line + '\n')
         else:
             val_server_dataset = [dataset[x] for x in index[:len_server_dataset]]
 
