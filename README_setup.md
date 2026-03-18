@@ -43,6 +43,23 @@ Check if fine-tuning an LLM in standalone mode works correctly with DeepSpeed. R
 deepspeed federatedscope/main.py --cfg configs/standalone/occiglot-7B-eu5-instruct/ds_3c_200r_30ls.yaml
 ```
 
+To execute federated fine-tuning in distributed mode, separate commands need to be run for the server and each client. In the FedEloquence framework, each client must run on a different machine. The following config files will allow us to test if the setup works with two clients in distributed mode. However, before running the commands, ensure that the `server_host`, `server_port`, `client_host`, and `client_port` fields in the config files are updated with the correct IP addresses and ports for your machines. Additionally, adjust CUDA_VISIBLE_DEVICES to reflect the number of GPUs available on each machine.
+
+To run the server use:
+```bash
+deepspeed --master_addr=127.0.0.1 --master_port=29500 federatedscope/main.py --cfg configs/distributed/Phi-3.5-mini-instruct/server_ds_2c_200r_30ls.yaml
+```
+
+To run a first client in one machine use:
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2 deepspeed --master_addr=127.0.0.1 --master_port=29500 federatedscope/main.py --cfg configs/distributed/Phi-3.5-mini-instruct/client_1_ds_2c_200r_30ls.yaml
+```
+
+To run a second client in another machine:
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2 deepspeed --master_addr=127.0.0.1 --master_port=29500 federatedscope/main.py --cfg configs/distributed/Phi-3.5-mini-instruct/client_2_ds_2c_200r_30ls.yaml 
+```
+
 To ensure that the correct CUDA paths are set, add the following lines to your `.bashrc` (or equivalent shell configuration file). The CUDA version should be around version 12 (e.g., 12.4, 12.5, or 12.6). If you don’t already have the [CUTLASS](https://github.com/NVIDIA/cutlass) repository installed, clone and set it up on your machine.
 
 ```bash
