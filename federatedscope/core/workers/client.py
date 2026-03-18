@@ -3,7 +3,6 @@ import logging
 import sys
 import pickle
 import os
-
 import hashlib
 
 from federatedscope.core.message import Message
@@ -389,11 +388,14 @@ class Client(BaseClient):
                         f"[Client {self.ID}] Local early stop active. Training halted. "
                         f"Sending best model from round {self.round_in_which_best_client_model_is_saved}."
                     )
-
-                    # Load the best model seen so far
+                    # Load and send to the server the best model of this client seen so far
                     self.trainer.load_model(self.best_model_path)
                     model_to_send = self.trainer.get_model_para()
                     sample_size, model_para_all, results = 0, model_to_send, {}
+                    # Attention: When cfg.federate.ignore_weight = False, in FedAvg the aggregation weight is
+                    # proportional to sample_size. Setting sample_size = 0 results in zero contribution from this client.
+                    # We set sample_size to 0 because there is not training, but in LDES we need cfg.federate.ignore_weight = True
+                    # to get taking into account the contribution of this client.
                     
             # Return the feedbacks to the server after local update
             if self._cfg.federate.use_ss:
@@ -472,7 +474,7 @@ class Client(BaseClient):
                 # The training rounds before the first eval round the dict of best_results is empty.
                 # Therefore, we set a default value of 1 so that all clients are equal and the first weights are FedAvg (same proportion)
                 if not self.best_results:
-                    client_best_val_loss = 1
+                    client_best_val_loss = 1 # dummy value for the initial aggregations (train rounds) previous to the first eval round
                 else:        
                     client_best_val_loss = self.best_results[client_key]['val_avg_loss']
               
@@ -484,7 +486,7 @@ class Client(BaseClient):
                             timestamp=self._gen_timestamp(
                                 init_timestamp=timestamp,
                                 instance_number=sample_size),
-                            content=(sample_size, shared_model_para, client_best_val_loss)))
+                            content=(sample_size, shared_model_para, client_best_val_loss, self.ID)))
 
     def callback_funcs_for_assign_id(self, message: Message):
         """
@@ -575,7 +577,7 @@ class Client(BaseClient):
 
         if self.early_stopper.early_stopped and self._cfg.federate.method in ["local", "global"]:
             metrics = list(self.best_results.values())[0]
-        # When no local or global methods are used
+        # When client still hasn't early stopped or no local/global methods are used
         else:
             metrics = {}
             metrics_LDES = {}
@@ -613,7 +615,8 @@ class Client(BaseClient):
             )
                     
             if update_best_this_round:
-                logger.info(f"[Client {self.ID}] Validation improved in round {self.state}. New best val_avg_loss: {self.best_results[client_key]['val_avg_loss']}") 
+                # We consider an improvement when the metric on the client's validation/test set increases by more than delta
+                logger.info(f"[Client {self.ID}] Validation improved in round {self.state} (improvement ≥ delta of early_stop). New best val_avg_loss: {self.best_results[client_key]['val_avg_loss']}") 
                 
                 if self._cfg.federate.save_client_model:
                     path = add_prefix_to_path(f'client_{self.ID}_',
@@ -630,11 +633,13 @@ class Client(BaseClient):
             else:
                 logger.info(f"[Client {self.ID}] No val_avg_loss improvement in this round.")
             
-            """ TODO: Allow cases for early stop in local and global methods (case of 1 single client) [without FedAvg (not using the mean of clients in server)]
+            """ TODO: Enable early stopping locally for single-client (global/local) cases without relying on the server.
+            Currently, early stopping is handled on the server by averaging client valid losses.
+            For one client, this average equals the client's loss, so it works — but the logic could be moved here for simplicity.
             self.early_stopper.track_and_check(self.history_results[
-                self._cfg.eval.best_res_update_round_wise_key])
-           
-             """
+            self._cfg.eval.best_res_update_round_wise_key])
+            """
+
             # History_results format from client X: {'test_loss': [44.047755, 43.070358, ...], 'test_total': [33, 33, ...], 'test_avg_loss': [1.33478, 1.305162, ...], 'val_loss': [48.858271, 49.094452, ...], 'val_total': [33, 33, ...], 'val_avg_loss': [1.480554, 1.487711, ...]}
             self.history_results = merge_dict_of_results(self.history_results, formatted_eval_res['Results_raw'])
             # This is the loss obtained by testing the latest aggregated model (downloaded from the server) on the client's local validation data.
@@ -663,7 +668,7 @@ class Client(BaseClient):
                 elif self.local_early_stop and self.was_early_stop:
                     logger.info(f"[Client {self.ID}] Continuing in local early stopping mode.")
 
-                # If the client is in local early stopping mode, it means that the patiente has been reached and 
+                # If the client is in local early stopping mode, it means that the patience has been reached and 
                 # the client will not train in the following traininig rounds. Instead, it will send the best model seen so far to the server.
                 if self.local_early_stop:
                     # We save the current val_avg_loss as the "val_avg_loss_curr" to keep track of the current round's performance

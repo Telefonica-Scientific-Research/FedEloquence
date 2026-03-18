@@ -2,6 +2,7 @@ import logging
 import copy
 import os
 import sys
+import torch
 
 import numpy as np
 import pickle
@@ -91,6 +92,9 @@ class Server(BaseServer):
             self._monitor.the_larger_the_better)
         
         self.all_clients_saturated = False
+
+        # Servers collects and saves the best val_avg_loss of each client for loss-aware weighted aggregation 
+        self.losses_for_weighting = {}
 
         if self._cfg.federate.share_local_model \
                 and not self._cfg.federate.process_num > 1 \
@@ -467,18 +471,16 @@ class Server(BaseServer):
             aggregator = self.aggregators[model_idx]
             msg_list = []
             staleness = []
-            # Servers collects and saves the best val_avg_loss of each client for loss-aware weighted aggregation 
-            losses_for_weighting = {}
 
             for client_id, buffer_entry in train_msg_buffer.items():
                 # Buffer_entry is a tuple: (train_data_size, model_para, client_best_val_loss)
                 if self.model_num == 1:
                     msg_list.append(buffer_entry)
-                    losses_for_weighting[client_id] = buffer_entry[2]
+                    self.losses_for_weighting[client_id] = buffer_entry[2]
                 else:
                     train_data_size, model_para_multiple, client_best_val_loss = buffer_entry
                     msg_list.append((train_data_size, model_para_multiple[model_idx]))
-                    losses_for_weighting[client_id] = client_best_val_loss
+                    self.losses_for_weighting[client_id] = client_best_val_loss
 
                 # The staleness of the messages in train_msg_buffer
                 # should be 0
@@ -506,7 +508,7 @@ class Server(BaseServer):
                 'client_feedback': msg_list,
                 'recover_fun': self.recover_fun,
                 'staleness': staleness,
-                'losses_for_weighting': losses_for_weighting,
+                'losses_for_weighting': self.losses_for_weighting,
             }
             # logger.info(f'The staleness is {staleness}')
             result = aggregator.aggregate(agg_info)
@@ -570,11 +572,31 @@ class Server(BaseServer):
                 file_io=False, from_global_monitors=True)
         self.check_and_save()
 
+    def _load_sd(self, p):
+        ckpt = torch.load(p, map_location="cpu")
+        return ckpt["model"] if "model" in ckpt else ckpt
+    
     def save_best_results(self):
         """
         To Save the best evaluation results.
         """
-        # Save final round model
+        # NOTE: During LDES training, the final server model does NOT include the last client's BEST_MODEL.
+        #
+        # Reason:
+        # - A client sends its BEST_MODEL to the server during a federated training round.
+        # - When a client reaches the patience criterion (checked during an evaluation round),
+        #   it notifies the server (local_early_stop = True) and stops further training.
+        #   From that point on, the client's BEST_MODEL is sent to the server in subsequent
+        #   training rounds for aggregation.
+        # - The last client to stop training notifies the server in the last evaluation round, 
+        #   making the whole process to stop. As a consequence, its BEST_MODEL is never incorporated
+        #   into the server since there are no more training rounds (aggregation).
+        #
+        # Consequence:
+        # - The server-side model saved below represents the aggregation of all clients
+        #   EXCEPT the last client.
+        #
+        # This behavior is corrected later by performing a final aggregation of all BEST_MODEL checkpoints (see _final_aggregate_best_models() below).
         if self._cfg.federate.adapt_save_to != '' and self.ds_rank == 0:
             self.aggregator.save_model(
                 add_prefix_to_path('final_', self._cfg.federate.adapt_save_to),
@@ -582,7 +604,12 @@ class Server(BaseServer):
             self.delete_prev_ckpt()
             self.save_model_weights_with_trained_adapter()
             if self._cfg.llm.to_hf_format.use == True:
-                self.prepare_for_hf_format()   
+                self.prepare_for_hf_format()
+
+        # Final metrics obtained with the server’s aggregated model using the server hold-out dataset.
+        # In LDES, at this point the aggregated model does NOT incorporate the BEST_MODEL of the last
+        # client to trigger local early stopping, because the BEST_MODEL is sent after an evaluation
+        # round during a training round, and no further training rounds remain
         formatted_best_res = self._monitor.format_eval_res(
             results=self.best_results,
             rnd="Final",
@@ -591,6 +618,80 @@ class Server(BaseServer):
             return_raw=True)
         logger.info(formatted_best_res)
         self._monitor.save_formatted_results(formatted_best_res)
+
+        # NOTE: To obtain the true final LDES model, we explicitly do an aggregation of all client BEST_MODEL
+        # checkpoints, INCLUDING the last client's BEST_MODEL.
+        #
+        # At this point:
+        # - All clients have finished training.
+        # - All BEST_MODEL checkpoints are available on disk.
+        #
+        # This final aggregation step corrects the server-side exclusion described above and produces the definitive LDES aggregated adapter.
+        if self._cfg.federate.use_LDES:
+            self._final_aggregate_best_models()
+
+    def _final_aggregate_best_models(self):
+
+        ckpt_dir = os.path.dirname(self._cfg.federate.adapt_save_to)
+        base = os.path.basename(self._cfg.federate.adapt_save_to)
+
+        client_entries = []
+
+        for client_id in range(1, self.client_num + 1):
+            fname = f"client_{client_id}_BEST_MODEL_" + base
+            path = os.path.join(ckpt_dir, fname)
+
+            if not os.path.exists(path):
+                logger.warning(f"[LDES] Missing BEST_MODEL for client {client_id}")
+                continue
+
+            sd = self._load_sd(path)
+
+            # Construct a "fake" client_feedback entry
+            # Format expected by _para_weighted_avg/_para_loss_weighted_avg/_para_inv_loss_weighted_avg...: (sample_size, model_state_dict, best_loss, client_id)
+            # TODO: Get correct value of sample_size for the case when ignore_weight = False (i.e., standard FedAvg)
+            sample_size = 1  # Dummy value, not used when ignore_weight = True
+
+            client_entries.append(
+                (sample_size, sd, self.losses_for_weighting[client_id], client_id)
+            )
+
+        if not client_entries:
+            logger.warning("[LDES] No BEST_MODEL checkpoints found.")
+            return
+
+        aggregated_sd = self._aggregate_from_entries(client_entries)
+
+        out_path = add_prefix_to_path(
+            "final_LDES_BEST_MODEL_", self._cfg.federate.adapt_save_to
+        )
+        torch.save({"model": aggregated_sd, "cur_round": self.state}, out_path)
+
+        logger.info(
+            f"[LDES] Final aggregation done using {len(client_entries)} clients and {self._cfg.federate.method}. "
+            f"Saved to {out_path}"
+        )
+
+    def _aggregate_from_entries(self, client_entries):
+        """
+        client_entries: List of (sample_size, state_dict, best_loss, client_id)
+        """
+
+        aggregator = self.aggregators[0]
+
+        losses_for_weighting = {
+            cid: loss for _, _, loss, cid in client_entries
+        }
+
+        agg_info = {
+            "client_feedback": client_entries,
+            "recover_fun": None,
+            "staleness": [(cid, 0) for _, _, _, cid in client_entries],
+            "losses_for_weighting": losses_for_weighting,
+        }
+
+        aggregated_sd = aggregator.aggregate(agg_info)
+        return aggregated_sd
     
     def save_model_weights_with_trained_adapter(self):
         import torch
@@ -723,6 +824,12 @@ class Server(BaseServer):
                             metrics_all_clients[key] = list()
                         metrics_all_clients[key].append(
                             float(client_eval_results[key]))
+                
+                # In LDES, "Server # (mean)" is the mean of the CURRENT val losses of clients (not mean of BEST val losses of clients)
+                # To get the "Server # (mean) - LDES" (not printed in the logs at the moment), we would simply need to compute and print 
+                # the average for the BEST val losses of clients (as is done for the CURRENT losses)
+                # In fact, the original code call it Server, but it might be confusing, because we are simply showing the mean of the val losses of the CLIENTS,
+                # but we are not getting any metrics from the aggregated model of the server. This is done for "Server #".
                 formatted_logs = self._monitor.format_eval_res(
                     metrics_all_clients,
                     rnd=round,
@@ -773,7 +880,7 @@ class Server(BaseServer):
                     # may also be high
                     if self._cfg.federate.adapt_save_to != '' and self.ds_rank == 0:
                         self.aggregator.save_model(self._cfg.federate.adapt_save_to,
-                                                   self.state)
+                                                   self.state)                     
 
         return formatted_logs_all
 
@@ -1060,6 +1167,7 @@ class Server(BaseServer):
             # internal models;
             # for other cases such as ensemble, override the eval function
             for i in range(self.model_num):
+                # Metrics obtained with the aggregated model of the server using the hold-out dataset of the server
                 trainer = self.trainers[i]
                 metrics = {}
                 for split in self._cfg.eval.split: 
@@ -1087,6 +1195,7 @@ class Server(BaseServer):
                                       filter_unseen_clients=False)
         elif self._cfg.federate.make_clients_eval and self._cfg.federate.make_global_eval:
             for i in range(self.model_num):
+                # Metrics obtained with the aggregated model of the server using the hold-out dataset of the server
                 trainer = self.trainers[i]
                 metrics = {}
                 for split in self._cfg.eval.split: 
