@@ -1,6 +1,9 @@
+import logging
 import torch
 import torch.nn as nn
 from collections import OrderedDict
+
+logger = logging.getLogger(__name__)
 
 
 def enable_adapter(model, package, adapter, **kwargs):
@@ -55,7 +58,15 @@ def enable_adapter(model, package, adapter, **kwargs):
             model = get_peft_model(model, peft_config)
         else:
             raise NotImplementedError
+        # PEFT prints to stdout and exp_print.log
         model.print_trainable_parameters()
+        trainable = sum(p.numel() for p in model.parameters()
+                        if p.requires_grad)
+        total = sum(p.numel() for p in model.parameters())
+        pct = 100.0 * trainable / total if total else 0.0
+        logger.info(
+            "trainable params: %d || all params: %d || trainable%%: %.6f",
+            trainable, total, pct)
 
     elif package == 'adapterhub':
         """
