@@ -31,7 +31,13 @@ def parse_args(args=None):
                         help='See federatedscope/core/configs for all options',
                         default=None,
                         nargs=argparse.REMAINDER)
-    parser.add_argument('--model_to_eval', type=str, required=False, help='Type of the model to evaluate (final, client 1 (best)...)')
+    parser.add_argument('--model_to_eval', type=str, required=False, help='Type of the model to evaluate ("final", "client_1" (BEST), "final_LDES"...)')
+    parser.add_argument("--batch_size", type=int, default=1, required=False, help='Batch size for evaluation')
+    parser.add_argument("--output_path", type=str, required=False, help='Path to save the evaluation results (LLM generations + metrics)')
+    parser.add_argument("--use_rouge", action="store_true", required=False, help='Whether to use ROUGE as evaluation metric')
+    parser.add_argument("--use_bertscore", action="store_true", required=False, help='Whether to use BERTScore as evaluation metric')
+    parser.add_argument("--use_llm_judge", action="store_true", required=False, help='Whether to use LLM judge as evaluation metric')
+    parser.add_argument("--testset_name", type=str, required=False, help='Name of the test set ("alpaca_cleaned_10c_server_testset", "alpaca_cleaned_10c_clients_testset" ...)')
     parse_res = parser.parse_args(args)
     init_cfg = global_cfg.clone()
     # when users type only "main.py" or "main.py help"
