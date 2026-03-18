@@ -612,6 +612,7 @@ class Monitor(object):
         ``round_wise_update_key="val_loss" ``
         """
         update_best_this_round = False
+        delta = self.cfg.early_stop.delta
         if not isinstance(new_results, dict):
             raise ValueError(
                 f"update best results require `results` a dict, but got"
@@ -631,9 +632,17 @@ class Monitor(object):
                                 "client_best_individual",
                                 "unseen_client_best_individual"
                         ]:
-                            cur_result = min(cur_result)
-                        if key not in best_result or cur_result < best_result[
-                                key]:
+                            if isinstance(cur_result, list):
+                                if len(cur_result) == 1:
+                                    cur_result = cur_result[0]  # Extract the single value
+                                else:
+                                    cur_result = min(cur_result)
+                        if isinstance(cur_result, list):
+                            if len(cur_result) == 1:
+                                cur_result = cur_result[0]  # Extract the single value
+                            else:
+                                cur_result = min(cur_result)
+                        if (key not in best_result) or ((cur_result + delta) < best_result[key]):
                             best_result[key] = cur_result
                             update_best_this_round = True
 
@@ -695,10 +704,20 @@ class Monitor(object):
                             "client_best_individual",
                             "unseen_client_best_individual"
                     ]:
-                        cur_result = min(cur_result)
-                    if found_round_wise_update_key not in best_result or \
-                            cur_result < best_result[
-                            found_round_wise_update_key]:
+                        # Handle both cases: if it's a list, get min; if it's a single value, keep it
+                        if isinstance(cur_result, list):
+                            if len(cur_result) == 1:
+                                cur_result = cur_result[0]  # Extract the single value
+                            else:
+                                cur_result = min(cur_result)
+                    # Handle both cases: if it's a list, get min; if it's a single value, keep it
+                    if isinstance(cur_result, list):
+                        if len(cur_result) == 1:
+                            cur_result = cur_result[0]  # Extract the single value
+                        else:
+                            cur_result = min(cur_result)
+                    # If it's already a single value, keep it as is
+                    if (found_round_wise_update_key not in best_result) or (cur_result + delta < best_result[found_round_wise_update_key]):
                         best_result[found_round_wise_update_key] = cur_result
                         update_best_this_round = True
 
