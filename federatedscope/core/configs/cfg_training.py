@@ -33,6 +33,10 @@ def extend_training_cfg(cfg):
     cfg.train.local_update_steps = 1
     cfg.train.batch_or_epoch = 'batch'
     cfg.train.data_para_dids = []  # `torch.nn.DataParallel` devices
+    # In batch-based training (train.batch_or_epoch=batch), when continue_train_iterator_across_rounds=True keeps iterating the same train DataLoader across
+    # FL train rounds (no reset at round start as when continue_train_iterator_across_rounds=False). This yields no-repeat sampling until
+    # the loader is exhausted (epoch done), then starts a newly shuffled pass. No effect for train.batch_or_epoch=epoch
+    cfg.train.continue_train_iterator_across_rounds = False
 
     cfg.train.optimizer = CN(new_allowed=True)
     cfg.train.optimizer.type = 'SGD'
