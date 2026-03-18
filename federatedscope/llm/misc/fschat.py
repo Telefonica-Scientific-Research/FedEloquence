@@ -49,6 +49,7 @@ class FSChatBot(object):
             config: A FS configuration object that contains various settings
                 for the chatbot.
         """
+        self.config = config
         model_name, model_hub = config.model.type.split('@')
         self.tokenizer, _ = get_tokenizer(model_name, config.data.root,
                                           config.llm.tok_len, model_hub)
@@ -66,12 +67,14 @@ class FSChatBot(object):
                 original_path = config.federate.adapt_save_to
                 dir_name = os.path.dirname(original_path)
                 file_name = os.path.basename(original_path)
-                
+
                 if model_to_eval == "final":
                     specific_file_name = f"final_{file_name}"
+                elif model_to_eval == "final_LDES":
+                    specific_file_name = f"final_LDES_BEST_MODEL_{file_name}"
                 else: #BEST MODEL of a client
                     specific_file_name = f"{model_to_eval}_BEST_MODEL_{file_name}"
-                
+
                 final_path = os.path.join(dir_name, specific_file_name)
                 print("Checkpoint to use for evaluation:", final_path)
                 ckpt = torch.load(final_path, map_location='cpu')
@@ -80,13 +83,13 @@ class FSChatBot(object):
                 else:
                     self.model.load_state_dict(ckpt)
                 if print_model_arch:
-                    print("Model architecture:\n") 
+                    print("Model architecture:\n")
                     print(self.model)
                     print("\n")
             except Exception as error:
                 print(f"{error}, will use raw model.")
                 if print_model_arch:
-                    print("Model architecture:\n")    
+                    print("Model architecture:\n")
                     print(self.model)
                     print("\n")
         if config.train.is_enable_half:
@@ -94,13 +97,13 @@ class FSChatBot(object):
 
         self.model = self.model.to(self.device)
         self.model = self.model.eval()
-        if torch.__version__ >= "2" and sys.platform != "win32":
-            self.model = torch.compile(self.model)
+        #if torch.__version__ >= "2" and sys.platform != "win32":
+        #    self.model = torch.compile(self.model)
 
         self.max_history_len = config.llm.chat.max_history_len
         self.max_len = config.llm.chat.max_len
         self.history = []
-
+        
     def _build_prompt(self, input_text):
         """
         Builds a prompt template for the input text.
@@ -153,112 +156,105 @@ class FSChatBot(object):
             self.tokenizer.decode(response[0][input_ids.shape[1]:],
                                   skip_special_tokens=True)
         return response_tokens
-    
-    """ Using chat_template from the tokenizer
+
     @torch.no_grad()
-    def generate(self, input_text, generate_kwargs={}):
-        
-        #Generates a response for the input chat messages using the model and
-        #additional arguments.
-
-        #Args:
-        #    messages: A list of dicts with the chat format, e.g.
-        #        [ {"role": "user", "content": "Hello!"} ]
-        #    generate_kwargs: A dictionary of keyword arguments to pass to the
-        #        model's generate method. Default is an empty dictionary.
-
-        #Returns:
-        #    A string or a list of strings representing the chatbot's response text.
-        #    If the generate_kwargs contains num_return_sequences > 1,
-        #    then a list of strings is returned. Otherwise, a single string is returned.
-        #
-        ## Build chat-style prompt using the tokenizer's chat template
-        from datetime import datetime
-
-        message = [ { "role": "user", "content": input_text } ]
-
-        date_string = datetime.today().strftime('%Y-%m-%d')
-        prompt = self.tokenizer.apply_chat_template(
-            message,
-            tokenize=False,
-            add_generation_prompt=True,  # ensures model knows it's generating
-            date_string=date_string
-        )        
-
-        # Tokenize the constructed prompt
-        encoded = self.tokenizer(
-            prompt,
-            padding=False,
-            add_special_tokens=True,
-            return_tensors="pt",
-        )
-        input_ids = encoded.input_ids.to(self.device)
-        attention_mask = encoded.attention_mask.to(self.device)
-        self.model.eval()
-
-        # Generate continuation
-        output_ids = self.model.generate(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            max_new_tokens=1300
-        )
-
-        # Decode only the generated part
-        responses = []
-        for i in range(output_ids.shape[0]):
-            responses.append(
-                self.tokenizer.decode(
-                    output_ids[i][input_ids.shape[1]:],
-                    skip_special_tokens=True,
-                    ignore_tokenization_space=True
-                )
-            )
-
-        return responses if len(responses) > 1 else responses[0]
-    """
-    
-    @torch.no_grad()
-    def generate(self, input_text, generate_kwargs={}):
-        
+    def generate(self, input_texts, generate_kwargs={}, chat_template=False, date_string=False):
         """
-        Generates a response for the input text using the model and
-        additional arguments.
+        Batched generation.
 
         Args:
-            input_text: A string representing the user's input text.
-            generate_kwargs: A dictionary of keyword arguments to pass to the
-                model's generate method. Default is an empty dictionary.
+            input_texts (str | List[str]): single prompt or list of prompts
+            generate_kwargs (dict): HF generate kwargs
+            chat_template (bool): whether to apply tokenizer chat template
+            date_string (bool): whether to inject date_string
 
         Returns:
-            A string or a list of strings representing the chatbot's response
-            text. If the generate_kwargs contains num_return_sequences > 1,
-            then a list of strings is returned. Otherwise, a single string is
-            returned.
+            responses (str | List[str])
+            total_tokens_inp_out (int | List[int])
         """
 
-        input_text = self.tokenizer(
-            input_text,
-            padding=False,
-            add_special_tokens=True,
-            return_tensors="pt",
-        )
-        input_ids = input_text.input_ids.to(self.device)
-        attention_mask = input_text.attention_mask.to(self.device)
-        output_ids = self.model.generate(input_ids=input_ids,
-                                         attention_mask=attention_mask,
-                                         **generate_kwargs)
-        response = []
-        for i in range(output_ids.shape[0]):
-            response.append(
-                self.tokenizer.decode(output_ids[i][input_ids.shape[1]:],
-                                      skip_special_tokens=True,
-                                      ignore_tokenization_space=True)
-            )
+        # ---------------------------
+        # Normalize inputs to list
+        # ---------------------------
+        single_input = False
+        if isinstance(input_texts, str):
+            input_texts = [input_texts]
+            single_input = True
 
-        if len(response) > 1:
-            return response
-        return response[0]
-    
+        batch_size = len(input_texts)
+
+        # ---------------------------
+        # Apply chat template
+        # ---------------------------
+        if chat_template:
+            processed_texts = []
+            for text in input_texts:
+                messages = [{"role": "user", "content": text}]
+                if date_string:
+                    from datetime import datetime
+                    date_str = datetime.today().strftime("%Y-%m-%d")
+                    formatted = self.tokenizer.apply_chat_template(
+                        messages,
+                        tokenize=False,
+                        add_generation_prompt=True,
+                        date_string=date_str,
+                    )
+                else:
+                    formatted = self.tokenizer.apply_chat_template(
+                        messages,
+                        tokenize=False,
+                        add_generation_prompt=True,
+                    )
+                processed_texts.append(formatted)
+        else:
+            processed_texts = input_texts
+
+        original_padding_side = self.tokenizer.padding_side
+        use_left_padding = batch_size > 1 and original_padding_side != "left"
+        if use_left_padding:
+            self.tokenizer.padding_side = "left"
+
+        try:
+            model_inputs = self.tokenizer(
+                processed_texts,
+                return_tensors="pt",
+                padding=True,
+                add_special_tokens=True,
+            ).to(self.device)
+
+            self.model.eval()
+            generated_ids = self.model.generate(
+                input_ids=model_inputs.input_ids,
+                attention_mask=model_inputs.attention_mask,
+                **generate_kwargs
+            )
+            responses = []
+            token_counts = []
+            prompt_padded_len = model_inputs.input_ids.shape[1]
+
+            for i in range(batch_size):
+                output_ids = generated_ids[i][prompt_padded_len:]
+                responses.append(
+                    self.tokenizer.decode(
+                        output_ids,
+                        skip_special_tokens=True,
+                        ignore_tokenization_space=True,
+                    )
+                )
+                token_counts.append(generated_ids[i].shape[0])
+        finally:
+            if use_left_padding:
+                self.tokenizer.padding_side = original_padding_side
+
+        # ---------------------------
+        # Return single or batch
+        # ---------------------------
+        if single_input:
+            return responses[0], token_counts[0]
+
+        return responses, token_counts
+
+
     def clear(self):
         """Clears the history of previous turns.
 
