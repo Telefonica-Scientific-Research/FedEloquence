@@ -1,1 +1,0 @@
-Directory in which trained adapters are saved for FL methods
