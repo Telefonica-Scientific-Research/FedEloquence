@@ -263,7 +263,16 @@ class GeneralTorchTrainer(Trainer):
             setattr(ctx, "{}_loader".format(ctx.cur_split),
                     ReIterator(ctx.get("{}_loader".format(ctx.cur_split))))
         else:
-            ctx.get("{}_loader".format(ctx.cur_split)).reset()
+            # Optional streaming behavior for batch-based FL (batch sampling without replacement across train rounds):
+            # keep the train iterator position across rounds so each round continues where the previous one stopped (until exhaustion = whole train dataset seen (one epoch)).
+            keep_train_stream = (
+                ctx.cur_mode in [MODE.TRAIN, MODE.FINETUNE]
+                and ctx.cur_split == 'train'
+                and ctx.cfg.train.batch_or_epoch == 'batch'
+                and ctx.cfg.train.continue_train_iterator_across_rounds
+            )
+            if not keep_train_stream:
+                ctx.get("{}_loader".format(ctx.cur_split)).reset()
 
     def _hook_on_batch_start_init(self, ctx):
         """
