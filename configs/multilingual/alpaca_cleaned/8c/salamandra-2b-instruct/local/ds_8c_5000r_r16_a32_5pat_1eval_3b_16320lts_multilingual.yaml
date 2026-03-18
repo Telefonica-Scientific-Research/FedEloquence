@@ -78,7 +78,7 @@ model:
   type: BSC-LT/salamandra-2b-instruct@huggingface_llm
 train:
   batch_or_epoch: batch
-  continue_train_iterator_across_rounds: true # Just has an effect for batch_or_epoch: batch (per training round fa batch sampling without replacement (batches sequencials sobre a shuffled training set), pel cas de batch_or_epoch: epoch no cal perque cada round es un epoch sencer (i doncs ja mira totes les samples del training set)
+  continue_train_iterator_across_rounds: true # Only affects `batch_or_epoch: batch`: each training round uses the next sequential batch from the same shuffled training set (sampling without replacement across rounds). For `batch_or_epoch: epoch`, this setting is not needed because each round already runs a full epoch over the entire training set.
   is_enable_half: true
   local_update_steps: 16320
   optimizer:
