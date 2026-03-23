@@ -2,7 +2,9 @@ import os
 import torch
 from federatedscope.core.aggregators import Aggregator
 from federatedscope.core.auxiliaries.utils import param2tensor
+import logging
 
+logger = logging.getLogger(__name__)
 
 class ClientsAvgAggregator(Aggregator):
     """
@@ -63,13 +65,18 @@ class ClientsAvgAggregator(Aggregator):
         """
         training_set_size = 0
         for i in range(len(models)):
-            sample_size, _, _ = models[i]
+            sample_size, _, _, _ = models[i]
             training_set_size += sample_size
+        
+        round_weights_per_clients = {}
 
-        sample_size, avg_model, _ = models[0]
+        sample_size, avg_model, _, _ = models[0]
+        printed = False  # log only once
+
         for key in avg_model:
             for i in range(len(models)):
-                local_sample_size, local_model, _ = models[i]
+                local_sample_size, local_model, _, client_ID = models[i]
+                client_key = f"client #{client_ID}"
 
                 if self.cfg.federate.ignore_weight:
                     weight = 1.0 / len(models)
@@ -79,6 +86,9 @@ class ClientsAvgAggregator(Aggregator):
                     weight = 1.0
                 else:
                     weight = local_sample_size / training_set_size
+                
+                if not printed:
+                    round_weights_per_clients[client_key] = round(float(weight), 3)
 
                 if not self.cfg.federate.use_ss:
                     local_model[key] = param2tensor(local_model[key])
@@ -86,6 +96,8 @@ class ClientsAvgAggregator(Aggregator):
                     avg_model[key] = local_model[key] * weight
                 else:
                     avg_model[key] += local_model[key] * weight
+            
+            printed = True
 
             if self.cfg.federate.use_ss and recover_fun:
                 avg_model[key] = recover_fun(avg_model[key])
@@ -93,6 +105,10 @@ class ClientsAvgAggregator(Aggregator):
                 # sample_size * model_para
                 avg_model[key] /= training_set_size
                 avg_model[key] = torch.FloatTensor(avg_model[key])
+
+        # Extract numeric ID and sort
+        sorted_weights = dict(sorted(round_weights_per_clients.items(), key=lambda x: int(x[0].split('#')[1].strip())))
+        logger.info(f"Aggregation weights of clients: {sorted_weights}")
 
         return avg_model
 
