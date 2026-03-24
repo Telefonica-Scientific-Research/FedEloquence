@@ -155,24 +155,61 @@ class LLMDataset(Dataset):
         max_len = tokenizer.model_max_length
 
         date_str = datetime.today().strftime("%Y-%m-%d")
+        use_chat_template = True
+        fallback_warning_emitted = False
 
-        for messages in list_of_messages:
-            # Render full conversation using chat template
-            rendered = tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=False,
-                date_string=date_str
-            )
-
-            # Tokenize the full sequence
-            encoded = tokenizer(
-                rendered,
+        def encode_rendered_text(text):
+            return tokenizer(
+                text,
                 truncation=True,
                 max_length=max_len,
                 add_special_tokens=False,
-                return_tensors="pt"
+                return_tensors="pt",
             )
+
+        def warn_chat_template_fallback(error):
+            nonlocal fallback_warning_emitted
+            if fallback_warning_emitted:
+                return
+            warn_msg = (
+                "Failed to apply tokenizer chat template; "
+                "continuing without chat template. "
+                f"Original error: {error}"
+            )
+            logger.warning(warn_msg)
+            print(f"WARNING: {warn_msg}", flush=True)
+            fallback_warning_emitted = True
+
+        def is_missing_chat_template_error(error):
+            return "tokenizer.chat_template is not set" in str(error)
+
+        def render_without_chat_template(messages):
+            return "\n".join(
+                str(message.get("content", ""))
+                for message in messages
+            )
+
+        for messages in list_of_messages:
+            # Render full conversation using chat template when available.
+            if use_chat_template:
+                try:
+                    rendered = tokenizer.apply_chat_template(
+                        messages,
+                        tokenize=False,
+                        add_generation_prompt=False,
+                        date_string=date_str,
+                    )
+                except ValueError as error:
+                    if not is_missing_chat_template_error(error):
+                        raise
+                    warn_chat_template_fallback(error)
+                    use_chat_template = False
+                    rendered = render_without_chat_template(messages)
+            else:
+                rendered = render_without_chat_template(messages)
+
+            # Tokenize the full sequence
+            encoded = encode_rendered_text(rendered)
             # We don't apply padding here. We will do dynamic padding in the DataCollator
             #  padding="max_length", if it was like this we would increase the sample to max_lens with zeros (padding)
 
@@ -188,12 +225,26 @@ class LLMDataset(Dataset):
                 prefix_msgs.append(msg)
 
             if prefix_msgs:
-                rendered_prefix = tokenizer.apply_chat_template(
-                    prefix_msgs,
-                    tokenize=False,
-                    add_generation_prompt=False,
-                    date_string=date_str,
-                )
+                if use_chat_template:
+                    try:
+                        rendered_prefix = tokenizer.apply_chat_template(
+                            prefix_msgs,
+                            tokenize=False,
+                            add_generation_prompt=False,
+                            date_string=date_str,
+                        )
+                    except ValueError as error:
+                        if not is_missing_chat_template_error(error):
+                            raise
+                        warn_chat_template_fallback(error)
+                        use_chat_template = False
+                        rendered = render_without_chat_template(messages)
+                        encoded = encode_rendered_text(rendered)
+                        input_ids = encoded.input_ids[0]
+                        labels = input_ids.clone()
+                        rendered_prefix = render_without_chat_template(prefix_msgs)
+                else:
+                    rendered_prefix = render_without_chat_template(prefix_msgs)
                 prefix_ids = tokenizer(
                     rendered_prefix,
                     add_special_tokens=False,
