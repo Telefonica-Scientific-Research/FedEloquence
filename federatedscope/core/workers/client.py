@@ -706,8 +706,9 @@ class Client(BaseClient):
                     return_raw=True)
                 logger.info(formatted_eval_res_LDES)
             
-            # Include the local_early_stop flag in the metrics to keep the server informed of the client's training status
-            metrics["local_early_stop"] = self.local_early_stop
+            # The gRPC message schema supports int/float/str, not bool.
+            # Send this flag as 0/1 to keep distributed serialization stable.
+            metrics["local_early_stop"] = int(self.local_early_stop)
             # In LDES, val_avg_loss sent to the server is either current round's metrics (when in window of patience) or best-so-far if client has reached early stop.
             # Besides, val_avg_loss_curr is the current round's performance (when not in early stop is the same as val_avg_loss)
             # Val_avg_loss and val_avg_loss_cur in non-LDES are both equal and is the loss obtained by testing the latest aggregated model
@@ -717,7 +718,7 @@ class Client(BaseClient):
             # If not using LDES
             if not use_LDES:
                 # We don't use local_early_stop flag
-                metrics['local_early_stop'] = False
+                metrics['local_early_stop'] = 0
                 # We fill in the val_avg_loss_curr with the current round's val_avg_loss. 
                 # In metrics we will have two equal lists to maintain the format, but we don't really use val_avg_loss_curr for anything when not using LDES
                 metrics['val_avg_loss_curr'] = metrics['val_avg_loss']

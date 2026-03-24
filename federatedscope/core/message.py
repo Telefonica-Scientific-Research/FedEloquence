@@ -178,7 +178,9 @@ class Message(object):
                 return m_list
         else:
             m_single = gRPC_comm_manager_pb2.mSingle()
-            if type(value) in [int, np.int32]:
+            if type(value) in [bool, np.bool_]:
+                m_single.int_value = int(value)
+            elif type(value) in [int, np.int32]:
                 m_single.int_value = value
             elif type(value) in [str, bytes]:
                 m_single.str_value = value

@@ -666,7 +666,7 @@ class Monitor(object):
                 sorted_keys = []
                 for key in new_results:
                     # TODO: fix `in` condition
-                    if self.round_wise_update_key in key:
+                    if key == self.round_wise_update_key:
                         sorted_keys.insert(0, key)
                         found_round_wise_update_key = key
                     else:
@@ -724,6 +724,10 @@ class Monitor(object):
                 # update other metrics only if update_best_this_round is True
                 if update_best_this_round:
                     for key in sorted_keys[1:]:
+                        # Keep helper tracking metrics (e.g. val_avg_loss_curr)
+                        # out of best-result selection.
+                        if key.endswith('_curr'):
+                            continue
                         cur_result = new_results[key]
                         if results_type in [
                                 "client_best_individual",
