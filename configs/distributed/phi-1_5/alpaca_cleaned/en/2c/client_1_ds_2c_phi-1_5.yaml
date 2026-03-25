@@ -23,7 +23,7 @@ eval:
   - loss
   len_server_dataset: 1000
   best_res_update_round_wise_key: val_avg_loss
-expname_tag: ds_1c_5000r_r8_a16_1pat_160lts_fedavg
+expname_tag: ds_2c_5000r_r8_a16_1pat_160lts_fedavg
 federate:
   client_num: 2
   master_port: 26100
@@ -31,7 +31,7 @@ federate:
   mode: distributed
   online_aggr: false
   process_num: 1
-  adapt_save_to: finetuned_adapters/distributed/alpaca_cleaned_en/phi-1_5/federated/standard/ds_1c_5000r_r8_a16_1pat_160lts_fedavg.ckpt
+  adapt_save_to: finetuned_adapters/distributed/alpaca_cleaned_en/phi-1_5/federated/2c/standard/ds_2c_5000r_r8_a16_1pat_160lts_fedavg.ckpt
   share_local_model: false
   total_round_num: 5000
   use_global_early_stop: True
