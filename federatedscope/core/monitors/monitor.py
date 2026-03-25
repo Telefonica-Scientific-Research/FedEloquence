@@ -671,14 +671,23 @@ class Monitor(object):
                         found_round_wise_update_key = key
                     else:
                         sorted_keys.append(key)
+
+                # Some result forms (e.g. fairness) may only provide
+                # derived keys such as `val_avg_loss_std`. In that case,
+                # fallback to the first key containing the target metric.
                 if not found_round_wise_update_key:
-                    raise ValueError(
-                        "Your specified eval.best_res_update_round_wise_key "
-                        "is not in target results, "
-                        "use another key or check the name. \n"
-                        f"Got eval.best_res_update_round_wise_key"
-                        f"={self.round_wise_update_key}, "
-                        f"the keys of results are {list(new_results.keys())}")
+                    for key in list(sorted_keys):
+                        if self.round_wise_update_key in key:
+                            sorted_keys.remove(key)
+                            sorted_keys.insert(0, key)
+                            found_round_wise_update_key = key
+                            break
+                if not found_round_wise_update_key:
+                    logger.warning(
+                        "Skip best-result update: "
+                        f"`{self.round_wise_update_key}` is not in "
+                        f"{list(new_results.keys())}")
+                    return False
 
                 # the first key must be the `round_wise_update_key`,
                 # `update_best_this_round` should be set while evaluating the
